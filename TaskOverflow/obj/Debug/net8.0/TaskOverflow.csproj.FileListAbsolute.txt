@@ -1,0 +1,10 @@
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.csproj.AssemblyReference.cache
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.AssemblyInfoInputs.cache
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.AssemblyInfo.cs
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.csproj.CoreCompileInputs.cache
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.RazorAssemblyInfo.cache
+C:\Users\RyanLim\source\repos\TaskOverflow\TaskOverflow\obj\Debug\net8.0\TaskOverflow.RazorAssemblyInfo.cs
