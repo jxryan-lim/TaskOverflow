@@ -3,20 +3,12 @@
   "WorkspaceRootPath": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\views\\tasks\\index.cshtml||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\views\\tasks\\index.cshtml||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\models\\viewmodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\models\\viewmodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\controllers\\taskscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\controllers\\taskscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\controllers\\tasklistviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\controllers\\tasklistviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|c:\\users\\ryanlim\\source\\repos\\taskoverflow\\taskoverflow\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B9BB12FC-EAFD-4D6B-A658-12A360C71119}|TaskOverflow\\TaskOverflow.csproj|solutionrelative:taskoverflow\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 138,
+          "SelectedChildIndex": 139,
           "Children": [
             {
               "$type": "Bookmark",
@@ -155,6 +147,10 @@
             {
               "$type": "Bookmark",
               "Name": "ST:155:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{a80febb4-e7e0-4147-b476-21aaf2453969}"
             },
             {
               "$type": "Bookmark",
@@ -577,55 +573,33 @@
               "Name": "ST:130:0:{13b12e3e-c1b4-4539-9371-4fe9a0d523fc}"
             },
             {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "_Layout.cshtml",
-              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Views\\Shared\\_Layout.cshtml",
-              "RelativeDocumentMoniker": "TaskOverflow\\Views\\Shared\\_Layout.cshtml",
-              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Views\\Shared\\_Layout.cshtml",
-              "RelativeToolTip": "TaskOverflow\\Views\\Shared\\_Layout.cshtml",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAABVAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-02-27T10:12:50.671Z",
-              "EditorCaption": ""
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{004be353-6879-467c-9d1e-9ac23cdf6d49}"
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Index.cshtml",
-              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Views\\Tasks\\Index.cshtml",
-              "RelativeDocumentMoniker": "TaskOverflow\\Views\\Tasks\\Index.cshtml",
-              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Views\\Tasks\\Index.cshtml",
-              "RelativeToolTip": "TaskOverflow\\Views\\Tasks\\Index.cshtml",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2026-02-27T10:11:59.798Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "TaskListViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Controllers\\TaskListViewModel.cs",
-              "RelativeDocumentMoniker": "TaskOverflow\\Controllers\\TaskListViewModel.cs",
-              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Controllers\\TaskListViewModel.cs",
-              "RelativeToolTip": "TaskOverflow\\Controllers\\TaskListViewModel.cs",
-              "ViewState": "AgIAAAcAAAAAAAAAAAAUwAoAAAAkAAAAAAAAAA==",
+              "Title": "ViewModels.cs",
+              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Models\\ViewModels.cs",
+              "RelativeDocumentMoniker": "TaskOverflow\\Models\\ViewModels.cs",
+              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Models\\ViewModels.cs",
+              "RelativeToolTip": "TaskOverflow\\Models\\ViewModels.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-27T10:11:12.326Z",
+              "WhenOpened": "2026-02-27T20:29:28.631Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "TasksController.cs",
-              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Controllers\\TasksController.cs",
-              "RelativeDocumentMoniker": "TaskOverflow\\Controllers\\TasksController.cs",
-              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Controllers\\TasksController.cs",
-              "RelativeToolTip": "TaskOverflow\\Controllers\\TasksController.cs",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAAAAgAAAANAAAAAAAAAA==",
+              "Title": "ApplicationDbContext.cs",
+              "DocumentMoniker": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Data\\ApplicationDbContext.cs",
+              "RelativeDocumentMoniker": "TaskOverflow\\Data\\ApplicationDbContext.cs",
+              "ToolTip": "C:\\Users\\RyanLim\\source\\repos\\TaskOverflow\\TaskOverflow\\Data\\ApplicationDbContext.cs",
+              "RelativeToolTip": "TaskOverflow\\Data\\ApplicationDbContext.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAABKAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-27T10:10:42.035Z",
+              "WhenOpened": "2026-02-27T20:23:45.09Z",
               "EditorCaption": ""
             }
           ]

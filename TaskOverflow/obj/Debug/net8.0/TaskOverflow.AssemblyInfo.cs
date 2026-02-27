@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TaskOverflow")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e48f7bd77b1f712774bc12400b9e5479d1f9f3f8")]
 [assembly: System.Reflection.AssemblyProductAttribute("TaskOverflow")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TaskOverflow")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
