@@ -1,0 +1,136 @@
+cat > .gitignore << 'EOF'
+# Dependencies
+node_modules/
+vendor/
+packages/
+composer.lock
+package-lock.json
+yarn.lock
+
+# CRM Specific Sensitive Files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+config/database.yml
+config/secrets.yml
+config/credentials.yml.enc
+config/master.key
+*.pem
+*.key
+*.crt
+*.p12
+
+# Database
+*.sql
+*.sqlite
+*.db
+database.sqlite
+dump.rdb
+redis.conf.local
+
+# Logs and temporary files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/*.key
+tmp/
+temp/
+*.tmp
+
+# Uploads and user content
+public/uploads/*
+public/storage/*
+storage/app/public/*
+storage/app/uploads/*
+!public/storage/.gitkeep
+!storage/app/public/.gitkeep
+
+# Build outputs
+dist/
+build/
+public/build/
+public/mix-manifest.json
+public/hot
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.netbeans/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+._*
+
+# Testing
+coverage/
+reports/
+tests/coverage/
+phpunit.xml
+.phpunit.result.cache
+.phpunit-watcher.yml
+.env.testing
+
+# Cache
+.cache/
+.cache
+.cacher
+npm-packages-offline-cache/
+composer.phar
+vendor/bin/
+
+# Assets (compiled)
+public/css/
+public/js/
+public/fonts/
+!public/css/.gitkeep
+!public/js/.gitkeep
+!public/fonts/.gitkeep
+
+# Docker (if used)
+docker-compose.override.yml
+docker/data/
+docker/dbdata/
+*.pid
+Dockerfile.local
+
+# Deployment
+.deploy/
+deploy.php.bak
+.dep/
+
+# Backups
+*.bak
+*.backup
+*.orig
+*.old
+
+# Environment specific
+.htaccess
+web.config
+robots.txt
+!.env.example
+
+# Documentation
+/docs/build/
+/docs/site/
+
+# API documentation
+apidoc/
+swagger/
+EOF
