@@ -1,4 +1,3 @@
-cd C:\Users\User\Source\Repos\jxyran-lim\TaskOverflow
 cat > .gitignore << 'EOF'
 # Visual Studio
 .vs/
