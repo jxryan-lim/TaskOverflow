@@ -134,3 +134,22 @@ robots.txt
 apidoc/
 swagger/
 EOF
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.netbeans/
+
+# Visual Studio
+.vs/
+*.vs
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
