@@ -148,6 +148,7 @@ EOF
 
 # Visual Studio
 .vs/
+.vs
 *.vs
 *.user
 *.suo
