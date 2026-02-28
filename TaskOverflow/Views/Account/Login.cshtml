@@ -1,53 +1,109 @@
 ﻿@model LoginViewModel
 @{
-    ViewData["Title"] = "Log in";
+    ViewData["Title"] = "Welcome Back!";
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h2>@ViewData["Title"]</h2>
+<div class="row justify-content-center animate__animated animate__fadeIn">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-gradient-primary border-0 p-4 text-center">
+                <i class="bi bi-check2-circle display-1 text-white float"></i>
+                <h2 class="text-white mt-3">@ViewData["Title"]</h2>
+                <p class="text-white-50 mb-0">Sign in to continue to TaskOverflow</p>
             </div>
-            <div class="card-body">
+
+            <div class="card-body p-4">
                 <form asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-                    <div class="form-group mb-3">
-                        <label asp-for="Email" class="form-label"></label>
-                        <input asp-for="Email" class="form-control" autocomplete="username" />
-                        <span asp-validation-for="Email" class="text-danger"></span>
+                    <!-- Username Field -->
+                    <div class="form-group mb-4">
+                        <label asp-for="Username" class="form-label fw-semibold">
+                            <i class="bi bi-person"></i> Username
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="bi bi-person-circle"></i>
+                            </span>
+                            <input asp-for="Username" class="form-control border-start-0 ps-0"
+                                   placeholder="Enter your username"
+                                   autocomplete="username"
+                                   autofocus />
+                        </div>
+                        <span asp-validation-for="Username" class="text-danger"></span>
                     </div>
 
-                    <div class="form-group mb-3">
-                        <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                    <!-- Password Field -->
+                    <div class="form-group mb-4">
+                        <label asp-for="Password" class="form-label fw-semibold">
+                            <i class="bi bi-lock"></i> Password
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="bi bi-key"></i>
+                            </span>
+                            <input asp-for="Password" class="form-control border-start-0 ps-0"
+                                   placeholder="Enter your password"
+                                   autocomplete="current-password" />
+                        </div>
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
 
-                    <div class="form-group mb-3">
-                        <div class="checkbox">
-                            <label>
-                                <input asp-for="RememberMe" /> @Html.DisplayNameFor(m => m.RememberMe)
+                    <!-- Remember Me -->
+                    <div class="form-group mb-4">
+                        <div class="form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label">
+                                <i class="bi bi-check-circle"></i> Remember me
                             </label>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <button type="submit" class="btn btn-primary w-100">Log in</button>
-                    </div>
-
-                    <div class="text-center mt-3">
-                        <p>
-                            <a asp-action="Register">Register as a new user</a>
-                        </p>
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill pulse">
+                            <i class="bi bi-box-arrow-in-right"></i> Log In
+                        </button>
                     </div>
                 </form>
+
+                <!-- Links -->
+                <div class="text-center mt-4">
+                    <p class="mb-2">
+                        <a asp-action="ForgotPassword" class="text-decoration-none">
+                            <i class="bi bi-question-circle"></i> Forgot your password?
+                        </a>
+                    </p>
+                    <p class="mb-0">
+                        Don't have an account?
+                        <a asp-action="Register" class="text-decoration-none fw-bold">
+                            Sign up <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </p>
+                </div>
             </div>
+
+            <!-- Footer -->
+            <div class="card-footer bg-light border-0 p-3 text-center slide-in">
+                <small class="text-muted">
+                    <i class="bi bi-shield-check"></i> Secure login with username
+                </small>
+            </div>
+        </div>
+
+        <!-- Decorative Elements -->
+        <div class="text-center mt-4 animate__animated animate__fadeInUp animate__delay-1s">
+            <i class="bi bi-arrow-up-circle text-muted"></i>
+            <p class="text-muted small">TaskOverflow - Your Personal Task Manager</p>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+            $('#Username').focus();
+        });
+    </script>
 }

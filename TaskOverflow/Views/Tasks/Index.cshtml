@@ -128,57 +128,59 @@
                 {
                     @foreach (var task in Model.Tasks)
                     {
-                        <tr class="@(task.IsCompleted ? "table-secondary" : "")">
-                            <td class="align-middle text-center">
-                                <div class="form-check form-switch d-flex justify-content-center">
-                                    <input class="form-check-input task-status" type="checkbox" 
-                                           data-task-id="@task.Id"
-                                           @(task.IsCompleted ? "checked" : "")>
-                                </div>
-                            </td>
-                            <td class="align-middle">
-                                <span class="@(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">
-                                    @task.Description
-                                </span>
-                            </td>
-                            <td class="align-middle">
-                                @{
-                                    var badgeClass = task.Category switch
-                                    {
-                                        CategoryType.Urgent => "bg-danger",
-                                        CategoryType.Work => "bg-primary",
-                                        CategoryType.Personal => "bg-info",
-                                        _ => "bg-secondary"
-                                    };
-                                }
-                                <span class="badge @badgeClass">@task.Category</span>
-                            </td>
-                            <td class="align-middle">
-                                @if (task.DueDate.HasValue)
-                                {
-                                    <span class="@(task.DueDate.Value.Date < DateTime.Today && !task.IsCompleted ? "text-danger fw-bold" : "")">
-                                        @task.DueDate.Value.ToString("MMM dd, yyyy")
+                        <tr class="task-item" style="animation-delay: @(Model.Tasks.IndexOf(task) * 0.1)s">
+                            <tr class="@(task.IsCompleted ? "table-secondary" : "")">
+                                <td class="align-middle text-center">
+                                    <div class="form-check form-switch d-flex justify-content-center">
+                                        <input class="form-check-input task-status" type="checkbox"
+                                               data-task-id="@task.Id"
+                                            @(task.IsCompleted ? "checked" : "")>
+                                    </div>
+                                </td>
+                                <td class="align-middle">
+                                    <span class="@(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                            @task.Description
                                     </span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">No due date</span>
-                                }
-                            </td>
-                            <td class="align-middle">
-                                <small class="text-muted">@task.CreatedAt.ToString("MMM dd, yyyy")</small>
-                            </td>
-                            <td class="align-middle">
-                                <div class="btn-group btn-group-sm">
-                                    <a asp-action="Edit" asp-route-id="@task.Id" class="btn btn-warning">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-danger" 
-                                            onclick="deleteTask(@task.Id, '@task.Description')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+                                </td>
+                                <td class="align-middle">
+                                        @{
+                                            var badgeClass = task.Category switch
+                                            {
+                                                CategoryType.Urgent => "bg-danger",
+                                                CategoryType.Work => "bg-primary",
+                                                CategoryType.Personal => "bg-info",
+                                                _ => "bg-secondary"
+                                            };
+                                        }
+                                    <span class="badge @badgeClass">@task.Category</span>
+                                </td>
+                                <td class="align-middle">
+                                        @if (task.DueDate.HasValue)
+                                        {
+                                        <span class="@(task.DueDate.Value.Date < DateTime.Today && !task.IsCompleted ? "text-danger fw-bold" : "")">
+                                                @task.DueDate.Value.ToString("MMM dd, yyyy")
+                                        </span>
+                                        }
+                                        else
+                                        {
+                                        <span class="text-muted">No due date</span>
+                                        }
+                                </td>
+                                <td class="align-middle">
+                                    <small class="text-muted">@task.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Edit" asp-route-id="@task.Id" class="btn btn-warning">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-danger"
+                                                onclick="deleteTask(@task.Id, '@task.Description')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
                         </tr>
                     }
                 }
