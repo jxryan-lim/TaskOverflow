@@ -1,0 +1,186 @@
+﻿@model TimelineViewModel
+@using TaskOverflow.Models
+@{
+    ViewData["Title"] = "Timeline Board";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="bi bi-calendar-week"></i> Timeline Board
+        </h2>
+        <div class="btn-group">
+            <a asp-action="Timeline" asp-route-weeks="2" class="btn btn-outline-primary">2 Weeks</a>
+            <a asp-action="Timeline" asp-route-weeks="4" class="btn btn-outline-primary">4 Weeks</a>
+            <a asp-action="Timeline" asp-route-weeks="8" class="btn btn-outline-primary">8 Weeks</a>
+        </div>
+    </div>
+
+    <div class="timeline-container">
+        @foreach (var group in Model.Groups)
+        {
+            <div class="timeline-group card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-range"></i> @group.GroupName
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (!group.Items.Any())
+                    {
+                        <p class="text-muted text-center py-3">No tasks scheduled</p>
+                    }
+                    else
+                    {
+                        <div class="timeline-items">
+                            @foreach (var item in group.Items.OrderBy(i => i.StartDate))
+                            {
+                                <div class="timeline-item card mb-3 @(item.IsCompleted ? "completed" : "")
+                                    @(item.IsOverdue == true ? "overdue" : "")"
+                                     style="border-left: 5px solid @GetCategoryColor(item.Category);">
+                                    <div class="card-body py-3">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="form-check me-2">
+                                                        <input type="checkbox" class="form-check-input timeline-checkbox"
+                                                               data-id="@item.Id" @(item.IsCompleted ? "checked" : "") />
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-1 @(item.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                                            <a asp-action="Edit" asp-route-id="@item.Id" class="text-decoration-none">
+                                                                @item.Title
+                                                            </a>
+                                                        </h6>
+                                                        @if (item.StartDate.HasValue)
+                                                        {
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-calendar"></i>
+                                                                @item.StartDate.Value.ToString("MMM dd, yyyy")
+                                                                @if (item.IsOverdue == true)
+                                                                {
+                                                                    <span class="badge bg-danger ms-2">Overdue</span>
+                                                                }
+                                                            </small>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <span class="badge bg-@(item.Category == CategoryType.Urgent ? "danger" :
+                                                                       item.Category == CategoryType.Work ? "primary" : "info")">
+                                                    @item.Category
+                                                </span>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar bg-@(item.Progress == 100 ? "success" : "info")"
+                                                         role="progressbar" style="width: @item.Progress%;"
+                                                         aria-valuenow="@item.Progress" aria-valuemin="0" aria-valuemax="100">
+                                                        @if (item.Progress > 0)
+                                                        {
+                                                            <span class="small">@item.Progress%</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        @if (item.SubItems.Any())
+                                        {
+                                            <div class="mt-2 ms-4 ps-3 border-start">
+                                                @foreach (var sub in item.SubItems)
+                                                {
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <div class="form-check me-2">
+                                                            <input type="checkbox" class="form-check-input subtask-checkbox"
+                                                                   data-id="@sub.Id" @(sub.IsCompleted ? "checked" : "") disabled />
+                                                        </div>
+                                                        <small class="@(sub.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                                            @sub.Title
+                                                        </small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .timeline-item {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .timeline-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .timeline-item.overdue {
+            background-color: rgba(255, 107, 107, 0.1);
+        }
+
+        .timeline-item.completed {
+            opacity: 0.8;
+        }
+
+    [data-theme="dark"] .timeline-item {
+        background-color: var(--bg-card);
+        border-color: var(--border-color);
+    }
+</style>
+
+@section Scripts {
+    <script>
+        // Toggle task completion from timeline
+        document.querySelectorAll('.timeline-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', async function () {
+                const id = this.dataset.id;
+                try {
+                    const response = await fetch(`/Tasks/ToggleStatus/${id}`, {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                        }
+                    });
+
+                    if (response.ok) {
+                        const item = this.closest('.timeline-item');
+                        const title = item.querySelector('h6');
+                        if (this.checked) {
+                            title.classList.add('text-decoration-line-through', 'text-muted');
+                        } else {
+                            title.classList.remove('text-decoration-line-through', 'text-muted');
+                        }
+                        setTimeout(() => location.reload(), 500);
+                    }
+                } catch (error) {
+                    console.error('Error toggling task:', error);
+                }
+            });
+        });
+    </script>
+}
+
+@functions {
+    public string GetCategoryColor(CategoryType category)
+    {
+        return category switch
+        {
+            CategoryType.Urgent => "#ff6b6b",
+            CategoryType.Work => "#4d7cff",
+            CategoryType.Personal => "#20c997",
+            _ => "#6c757d"
+        };
+    }
+}

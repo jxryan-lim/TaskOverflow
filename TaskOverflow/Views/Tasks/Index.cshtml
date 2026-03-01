@@ -171,9 +171,10 @@
                                 </td>
                                 <td class="align-middle">
                                     <div class="btn-group btn-group-sm">
-                                        <a asp-action="Edit" asp-route-id="@task.Id" class="btn btn-warning">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
+                                    <a asp-action="Edit" asp-route-id="@task.Id" class="btn btn-warning btn-sm"
+                                       title="Edit with nested subtasks">
+                                        <i class="bi bi-diagram-3"></i>
+                                    </a>
                                         <button type="button" class="btn btn-danger"
                                                 onclick="deleteTask(@task.Id, '@task.Description')">
                                             <i class="bi bi-trash"></i>

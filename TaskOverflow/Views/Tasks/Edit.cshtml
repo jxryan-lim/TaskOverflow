@@ -1,54 +1,522 @@
-﻿@model TaskEditViewModel
+﻿@model TaskEditHierarchicalViewModel
+@using TaskOverflow.Models
 @{
-    ViewData["Title"] = "Edit Task";
+    ViewData["Title"] = "Edit — " + Model.Description;
+
+    List<HierarchicalSubTaskViewModel> Flatten(List<HierarchicalSubTaskViewModel> list)
+    {
+        var r = new List<HierarchicalSubTaskViewModel>();
+        foreach (var s in list) { r.Add(s); r.AddRange(Flatten(s.Children)); }
+        return r;
+    }
+
+    int CountAll(List<HierarchicalSubTaskViewModel> list)
+    {
+        int n = list.Count;
+        foreach (var s in list) n += CountAll(s.Children);
+        return n;
+    }
+
+    var allSubtasks = Flatten(Model.SubTasks);
+    var totalSt = allSubtasks.Count;
+    var doneSt = allSubtasks.Count(s => s.IsCompleted);
+    var pct = totalSt > 0 ? doneSt * 100 / totalSt : 0;
+    var circumference = 201; // 2 * pi * r32
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h2>Edit Task</h2>
+@Html.AntiForgeryToken()
+
+<style>
+    .et-tabs {
+        display: flex;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 24px;
+        gap: 0;
+    }
+
+    .et-tab {
+        padding: 10px 22px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        color: #6c757d;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all .15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+    }
+
+        .et-tab:hover {
+            color: #4361ee;
+        }
+
+        .et-tab.active {
+            color: #4361ee;
+            border-bottom-color: #4361ee;
+        }
+
+    .et-panel {
+        display: none;
+    }
+
+        .et-panel.active {
+            display: block;
+        }
+
+    .st-item {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        background: #fff;
+        transition: box-shadow .15s;
+    }
+
+        .st-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+    .st-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .st-toggle {
+        width: 22px;
+        height: 22px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        font-size: 11px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        transition: all .15s;
+        padding: 0;
+    }
+
+        .st-toggle:hover {
+            border-color: #4361ee;
+            color: #4361ee;
+            background: rgba(67,97,238,.05);
+        }
+
+        .st-toggle.leaf {
+            visibility: hidden;
+        }
+
+    .st-title {
+        flex: 1;
+        font-size: 14px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+        .st-title.done {
+            text-decoration: line-through;
+            color: #adb5bd;
+        }
+
+    .st-meta {
+        font-size: 11px;
+        color: #adb5bd;
+        flex-shrink: 0;
+    }
+
+    .st-actions {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+        .st-actions .btn {
+            padding: 3px 8px;
+            font-size: 12px;
+        }
+
+    .st-children {
+        padding-left: 28px;
+        padding-bottom: 4px;
+    }
+
+    .st-add-form {
+        display: none;
+        padding: 8px 12px 10px 40px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .pct-ring {
+        position: relative;
+        width: 80px;
+        height: 80px;
+    }
+
+        .pct-ring svg {
+            transform: rotate(-90deg);
+        }
+
+    .pct-ring-num {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 700;
+        color: #4361ee;
+    }
+</style>
+
+<div class="container-fluid mt-3" style="max-width: 1100px;">
+
+    <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="mb-0 fw-bold">@Model.Description</h2>
+            <small class="text-muted">
+                Created @Model.CreatedAt.ToString("MMM dd, yyyy")
+                @if (Model.UpdatedAt.HasValue)
+                {
+                    <text> &middot; Updated @Model.UpdatedAt.Value.ToString("MMM dd, yyyy")</text>
+                }
+            </small>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="TimelineView" asp-route-id="@Model.Id" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-calendar-range"></i> Timeline
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-8">
+
+            <div class="et-tabs">
+                <button class="et-tab active" onclick="showTab('details', this)">
+                    <i class="bi bi-pencil-square"></i> Task Details
+                </button>
+                <button class="et-tab" onclick="showTab('subtasks', this)">
+                    <i class="bi bi-diagram-3"></i> Subtasks
+                    <span class="badge bg-primary rounded-pill ms-1">@totalSt</span>
+                </button>
             </div>
-            <div class="card-body">
+
+            <div class="et-panel active" id="panel-details">
                 <form asp-action="Edit" method="post">
                     <input type="hidden" asp-for="Id" />
-                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="display:none"></div>
 
-                    <div class="form-group mb-3">
-                        <label asp-for="Description" class="form-label"></label>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
                         <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <span asp-validation-for="Description" class="text-danger small"></span>
                     </div>
 
-                    <div class="form-group mb-3">
-                        <label asp-for="Category" class="form-label"></label>
-                        <select asp-for="Category" class="form-select" asp-items="Html.GetEnumSelectList<CategoryType>()"></select>
-                        <span asp-validation-for="Category" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label asp-for="DueDate" class="form-label"></label>
-                        <input asp-for="DueDate" class="form-control" type="date" />
-                        <span asp-validation-for="DueDate" class="text-danger"></span>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <div class="form-check">
-                            <input asp-for="IsCompleted" class="form-check-input" />
-                            <label asp-for="IsCompleted" class="form-check-label"></label>
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-4">
+                            <label class="form-label fw-semibold">Category</label>
+                            <select asp-for="Category" class="form-select">
+                                @foreach (var cat in Enum.GetValues(typeof(CategoryType)))
+                                {
+                                    var c = (CategoryType)cat;
+                                    <option value="@c" selected="@(Model.Category == c)">@c</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label fw-semibold">Due Date</label>
+                            <input asp-for="DueDate" type="date" class="form-control"
+                                   value="@Model.DueDate?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label fw-semibold">Status</label>
+                            <div class="form-check form-switch mt-2">
+                                <input asp-for="IsCompleted" class="form-check-input" id="isCompletedSwitch" />
+                                <label class="form-check-label" for="isCompletedSwitch">Mark as completed</label>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Timeline Start</label>
+                            <input asp-for="StartDate" type="datetime-local" class="form-control"
+                                   value="@Model.StartDate?.ToString("yyyy-MM-ddTHH:mm")" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Timeline End</label>
+                            <input asp-for="EndDate" type="datetime-local" class="form-control"
+                                   value="@Model.EndDate?.ToString("yyyy-MM-ddTHH:mm")" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
+                        <button type="button" class="btn btn-outline-danger ms-auto"
+                                onclick="confirmDelete(@Model.Id)">
+                            <i class="bi bi-trash"></i> Delete Task
+                        </button>
                     </div>
                 </form>
+            </div>
+
+            <div class="et-panel" id="panel-subtasks">
+
+                <form asp-action="AddNestedSubTask" method="post" class="mb-4">
+                    <input type="hidden" name="taskId" value="@Model.Id" />
+                    <input type="hidden" name="ParentSubTaskId" value="" />
+                    <div class="input-group">
+                        <input type="text" name="Title" class="form-control"
+                               placeholder="Add a new subtask&hellip;" required />
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </form>
+
+                @if (!Model.SubTasks.Any())
+                {
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-diagram-2 fs-1 d-block mb-3 opacity-25"></i>
+                        No subtasks yet. Add one above!
+                    </div>
+                }
+                else
+                {
+                    <div id="subtaskTree">
+                        @{
+                            async Task RenderSubtask(HierarchicalSubTaskViewModel st, int level)
+                            {
+                                bool hasKids = st.Children.Any();
+                                int indent = level * 28;
+
+                                <div class="st-item" data-id="@st.Id" style="margin-left:@(indent)px">
+                                    <div class="st-row">
+                                        <button class="st-toggle @(!hasKids?"leaf":"")"
+                                                id="stToggle-@st.Id"
+                                                onclick="stToggle(@st.Id)">
+                                            @(hasKids ? "▾" : "")
+                                        </button>
+
+                                        <input type="checkbox"
+                                               class="form-check-input subtask-checkbox"
+                                               data-id="@st.Id"
+                                        @(st.IsCompleted ? "checked" : "") />
+
+                                        <span class="st-title @(st.IsCompleted?"done":"")"
+                                              id="stTitle-@st.Id">@st.Title</span>
+
+                                        <span class="st-meta">@st.CreatedAt.ToString("MMM dd")</span>
+
+                                        <div class="st-actions">
+                                            <button class="btn btn-outline-secondary btn-sm"
+                                                    onclick="stShowAdd(@st.Id)" title="Add child">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    onclick="stDelete(@st.Id)" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="st-add-form" id="stAddForm-@st.Id">
+                                        <form asp-action="AddNestedSubTask" method="post"
+                                              class="input-group input-group-sm">
+                                            <input type="hidden" name="taskId" value="@Model.Id" />
+                                            <input type="hidden" name="ParentSubTaskId" value="@st.Id" />
+                                            <input type="text" name="Title" class="form-control"
+                                                   placeholder="Child subtask name&hellip;" required />
+                                            <button type="submit" class="btn btn-success">Add</button>
+                                            <button type="button" class="btn btn-secondary"
+                                                    onclick="stHideAdd(@st.Id)">
+                                                Cancel
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    @if (hasKids)
+                                    {
+                                        <div class="st-children" id="stChildren-@st.Id">
+                                            @foreach (var child in st.Children.OrderBy(c => c.SortOrder))
+                                            {
+                                                await RenderSubtask(child, 0);
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            foreach (var st in Model.SubTasks.OrderBy(s => s.SortOrder))
+                            {
+                                await RenderSubtask(st, 0);
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="card mb-3">
+                <div class="card-header fw-semibold">Progress</div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-4 mb-3">
+                        <div class="pct-ring">
+                            <svg width="80" height="80" viewBox="0 0 80 80">
+                                <circle cx="40" cy="40" r="32" fill="none" stroke="#e9ecef" stroke-width="8" />
+                                <circle cx="40" cy="40" r="32" fill="none" stroke="#4361ee" stroke-width="8"
+                                        stroke-dasharray="@(Math.Round(pct * 2.01, 1)) @circumference"
+                                        stroke-linecap="round" />
+                            </svg>
+                            <div class="pct-ring-num">@pct%</div>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold">
+                                @doneSt <span class="text-muted fw-normal fs-6">/ @totalSt</span>
+                            </div>
+                            <div class="text-muted small">subtasks done</div>
+                            <div class="mt-2">
+                                @if (Model.IsCompleted)
+                                {
+                                    <span class="badge bg-success">Task Complete</span>
+                                }
+                                else if (pct == 100)
+                                {
+                                    <span class="badge bg-warning text-dark">Mark task complete!</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">In Progress</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="list-group list-group-flush small">
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Root subtasks</span>
+                            <strong>@Model.SubTasks.Count</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Nested subtasks</span>
+                            <strong>@(totalSt - Model.SubTasks.Count)</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Category</span>
+                            <strong>@Model.Category</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0">
+                            <span class="text-muted">Due date</span>
+                            <strong>@(Model.DueDate?.ToString("MMM dd, yyyy") ?? "—")</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header fw-semibold">Quick Actions</div>
+                <div class="list-group list-group-flush">
+                    <a asp-action="TimelineView" asp-route-id="@Model.Id"
+                       class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                        <i class="bi bi-calendar-range text-primary"></i> View Gantt Timeline
+                    </a>
+                    <a asp-action="Details" asp-route-id="@Model.Id"
+                       class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                        <i class="bi bi-eye text-info"></i> Task Details
+                    </a>
+                    <button onclick="confirmDelete(@Model.Id)"
+                            class="list-group-item list-group-item-action d-flex align-items-center gap-2 text-danger border-0 bg-transparent text-start w-100">
+                        <i class="bi bi-trash"></i> Delete Task
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<form id="deleteTaskForm" method="post" asp-action="Delete" style="display:none">
+    <input type="hidden" name="id" id="deleteTaskId" />
+</form>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        const CSRF = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        function showTab(name, btn) {
+            document.querySelectorAll('.et-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.et-tab').forEach(b => b.classList.remove('active'));
+            document.getElementById('panel-' + name).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        if (location.hash === '#subtasks') {
+            showTab('subtasks', document.querySelectorAll('.et-tab')[1]);
+        }
+
+        function stToggle(id) {
+            const kids = document.getElementById(`stChildren-${id}`);
+            const btn = document.getElementById(`stToggle-${id}`);
+            if (!kids) return;
+            const hide = kids.style.display !== 'none';
+            kids.style.display = hide ? 'none' : '';
+            btn.textContent = hide ? '\u25b8' : '\u25be';
+        }
+
+        function stShowAdd(id) { document.getElementById(`stAddForm-${id}`).style.display = 'block'; }
+        function stHideAdd(id) {
+            const f = document.getElementById(`stAddForm-${id}`);
+            f.style.display = 'none';
+            f.querySelector('input[name="Title"]').value = '';
+        }
+
+        function stDelete(id) {
+            if (!confirm('Delete this subtask and all its children?')) return;
+            const f = Object.assign(document.createElement('form'), { method: 'post', action: `/Tasks/DeleteNestedSubTask/${id}` });
+            f.innerHTML = `<input type="hidden" name="__RequestVerificationToken" value="${CSRF}">`;
+            document.body.appendChild(f);
+            f.submit();
+        }
+
+        document.querySelectorAll('.subtask-checkbox').forEach(cb => {
+            cb.addEventListener('change', async function () {
+                const res = await fetch(`/Tasks/ToggleNestedSubTask/${this.dataset.id}`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': CSRF }
+                });
+                if (res.ok) {
+                    document.getElementById(`stTitle-${this.dataset.id}`)?.classList.toggle('done', this.checked);
+                    setTimeout(() => location.reload(), 400);
+                }
+            });
+        });
+
+        function confirmDelete(id) {
+            if (confirm('Delete this task and all its subtasks?')) {
+                document.getElementById('deleteTaskId').value = id;
+                document.getElementById('deleteTaskForm').submit();
+            }
+        }
+    </script>
 }

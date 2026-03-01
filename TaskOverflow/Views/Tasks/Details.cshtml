@@ -1,0 +1,164 @@
+﻿@model TaskDetailViewModel
+@{
+    ViewData["Title"] = "Task Details";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>@Model.Task.Description</h3>
+                    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Category:</strong>
+                            <span class="badge bg-@(Model.Task.Category == CategoryType.Urgent ? "danger" :
+                                                      Model.Task.Category == CategoryType.Work ? "primary" : "info")">
+                                @Model.Task.Category
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Due Date:</strong>
+                            @(Model.Task.DueDate?.ToString("MMM dd, yyyy") ?? "No due date")
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Status:</strong>
+                            @if (Model.Task.IsCompleted)
+                            {
+                                <span class="badge bg-success">Completed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Pending</span>
+                            }
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h4>Subtasks</h4>
+
+                    <!-- Add Subtask Form -->
+                    <form asp-action="AddSubTask" method="post" class="mb-3">
+                        <input type="hidden" name="taskId" value="@Model.Task.Id" />
+                        <div class="input-group">
+                            <input type="text" name="Title" class="form-control"
+                                   placeholder="Add a subtask..." required />
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus"></i> Add
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Subtasks List -->
+                    @if (!Model.SubTasks.Any())
+                    {
+                        <p class="text-muted text-center">No subtasks yet. Add one above!</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group">
+                            @foreach (var subtask in Model.SubTasks.OrderBy(st => st.SortOrder))
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input subtask-checkbox"
+                                               data-id="@subtask.Id" @(subtask.IsCompleted ? "checked" : "") />
+                                        <label class="form-check-label @(subtask.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                            @subtask.Title
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted me-2">@subtask.CreatedAt.ToString("MMM dd")</small>
+                                        <button type="button" class="btn btn-sm btn-danger"
+                                                onclick="deleteSubtask(@subtask.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Card -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Progress</h5>
+                </div>
+                <div class="card-body">
+                    @{
+                        var total = Model.SubTasks.Count;
+                        var completed = Model.SubTasks.Count(st => st.IsCompleted);
+                        var percent = total > 0 ? (completed * 100 / total) : 0;
+                    }
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: @percent%;" aria-valuenow="@percent"
+                             aria-valuemin="0" aria-valuemax="100">
+                            @percent% Complete
+                        </div>
+                    </div>
+                    <p class="text-center">
+                        @completed of @total subtasks completed
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Subtask Form (hidden) -->
+<form id="deleteSubtaskForm" method="post" asp-action="DeleteSubTask" style="display: none;">
+    <input type="hidden" name="id" id="deleteSubtaskId" />
+</form>
+
+@section Scripts {
+    <script>
+        // Toggle subtask status
+        document.querySelectorAll('.subtask-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', async function () {
+                const id = this.dataset.id;
+                try {
+                    const response = await fetch(`/Tasks/ToggleSubTask/${id}`, {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Update the label styling
+                        const label = this.nextElementSibling;
+                        if (this.checked) {
+                            label.classList.add('text-decoration-line-through', 'text-muted');
+                        } else {
+                            label.classList.remove('text-decoration-line-through', 'text-muted');
+                        }
+
+                        // Reload after a short delay to show updated progress
+                        setTimeout(() => location.reload(), 500);
+                    }
+                } catch (error) {
+                    console.error('Error toggling subtask:', error);
+                }
+            });
+        });
+
+        // Delete subtask
+        function deleteSubtask(id) {
+            if (confirm('Are you sure you want to delete this subtask?')) {
+                document.getElementById('deleteSubtaskId').value = id;
+                document.getElementById('deleteSubtaskForm').submit();
+            }
+        }
+    </script>
+}

@@ -12,6 +12,7 @@ namespace TaskOverflow.Data
         }
 
         public DbSet<TaskItem> Tasks { get; set; }
+        public DbSet<SubTask> SubTasks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -27,14 +28,19 @@ namespace TaskOverflow.Data
                     .HasMaxLength(500);
 
                 entity.Property(t => t.Category)
-                    .HasConversion<int>(); // Store enum as int
+                    .HasConversion<int>();
 
                 entity.Property(t => t.CreatedAt)
                     .HasDefaultValueSql("GETDATE()");
 
-                // Default sort order for drag-and-drop
                 entity.Property(t => t.SortOrder)
                     .HasDefaultValue(0);
+
+                // Soft delete
+                entity.Property(t => t.IsDeleted)
+                    .HasDefaultValue(false);
+
+                entity.HasQueryFilter(t => !t.IsDeleted);
 
                 // Relationship with user
                 entity.HasOne(t => t.User)
@@ -42,11 +48,52 @@ namespace TaskOverflow.Data
                     .HasForeignKey(t => t.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Indexes for better query performance
+                // Subtasks relationship
+                entity.HasMany(t => t.SubTasks)
+                    .WithOne(st => st.TaskItem)
+                    .HasForeignKey(st => st.TaskItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes
                 entity.HasIndex(t => t.UserId);
                 entity.HasIndex(t => t.IsCompleted);
                 entity.HasIndex(t => t.DueDate);
                 entity.HasIndex(t => t.SortOrder);
+                entity.HasIndex(t => t.IsDeleted);
+            });
+
+            // Configure SubTask entity
+            builder.Entity<SubTask>(entity =>
+            {
+                entity.HasKey(st => st.Id);
+
+                entity.Property(st => st.Title)
+                    .IsRequired()
+                    .HasMaxLength(300);
+
+                entity.Property(st => st.CreatedAt)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(st => st.SortOrder)
+                    .HasDefaultValue(0);
+
+                // Soft delete
+                entity.Property(st => st.IsDeleted)
+                    .HasDefaultValue(false);
+                entity.HasQueryFilter(st => !st.IsDeleted);
+                entity.HasIndex(st => st.IsDeleted);
+
+                // Self-referencing relationship for nested subtasks
+                entity.HasOne(st => st.ParentSubTask)
+                    .WithMany(st => st.Children)
+                    .HasForeignKey(st => st.ParentSubTaskId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Indexes
+                entity.HasIndex(st => st.TaskItemId);
+                entity.HasIndex(st => st.ParentSubTaskId);
+                entity.HasIndex(st => st.IsCompleted);
+                entity.HasIndex(st => st.SortOrder);
             });
         }
     }
