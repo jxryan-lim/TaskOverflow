@@ -1010,48 +1010,53 @@ namespace TaskOverflow.Controllers
                 return NotFound();
             }
 
-            // Collect all dates from task and subtasks
-            var allDates = new List<DateTime>();
-
-            if (task.StartDate.HasValue) allDates.Add(task.StartDate.Value);
-            if (task.EndDate.HasValue) allDates.Add(task.EndDate.Value);
-
-            foreach (var subtask in task.SubTasks)
-            {
-                if (subtask.StartDate.HasValue) allDates.Add(subtask.StartDate.Value);
-                if (subtask.EndDate.HasValue) allDates.Add(subtask.EndDate.Value);
-            }
-
+            // Use the main task's dates as the anchor for the timeline
             DateTime timelineStart;
             DateTime timelineEnd;
 
-            if (allDates.Any())
+            if (task.StartDate.HasValue && task.EndDate.HasValue)
             {
-                // Add padding around the actual data
-                timelineStart = allDates.Min().AddDays(-2);
-                timelineEnd = allDates.Max().AddDays(2);
+                // If main task has both dates, use them as the anchor
+                timelineStart = task.StartDate.Value;
+                timelineEnd = task.EndDate.Value;
+
+                // Add some padding (10% on each side) for better visibility
+                var duration = (timelineEnd - timelineStart).TotalHours;
+                var padding = duration * 0.1; // 10% padding
+
+                timelineStart = timelineStart.AddHours(-padding);
+                timelineEnd = timelineEnd.AddHours(padding);
             }
             else
             {
-                // Default to current week if no dates
-                timelineStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
-                timelineEnd = timelineStart.AddDays(7);
+                // If main task doesn't have dates, default to a 7-day view centered on today
+                timelineStart = DateTime.Today.AddDays(-3);
+                timelineEnd = DateTime.Today.AddDays(4);
             }
 
             // Ensure minimum range based on zoom level
-            var minDays = zoom switch
+            var minHours = zoom switch
             {
-                TimelineZoomLevel.Hours => 1,
-                TimelineZoomLevel.HalfDays => 3,
-                TimelineZoomLevel.Days => 7,
-                TimelineZoomLevel.Weeks => 28,
-                TimelineZoomLevel.Months => 60,
-                _ => 7
+                TimelineZoomLevel.Hours => 24,      // 1 day minimum for hours view
+                TimelineZoomLevel.HalfDays => 48,    // 2 days for half-days
+                TimelineZoomLevel.Days => 168,       // 7 days for days view
+                TimelineZoomLevel.Weeks => 336,       // 2 weeks for weeks view
+                TimelineZoomLevel.Months => 720,      // 30 days for months view
+                _ => 168
             };
 
-            if ((timelineEnd - timelineStart).TotalDays < minDays)
+            if ((timelineEnd - timelineStart).TotalHours < minHours)
             {
-                timelineEnd = timelineStart.AddDays(minDays);
+                // Center the minimum range around the main task's start date if available
+                if (task.StartDate.HasValue)
+                {
+                    timelineStart = task.StartDate.Value.AddHours(-minHours / 2);
+                    timelineEnd = task.StartDate.Value.AddHours(minHours / 2);
+                }
+                else
+                {
+                    timelineEnd = timelineStart.AddHours(minHours);
+                }
             }
 
             // Generate headers based on zoom level
@@ -1070,6 +1075,7 @@ namespace TaskOverflow.Controllers
                 IsCompleted = task.IsCompleted,
                 Level = 0,
                 ColorCode = "#4361ee",
+                ParentSubTaskId = null, // Main task has no parent
                 Children = new List<TimelineItemViewModel>()
             });
 
@@ -1104,39 +1110,78 @@ namespace TaskOverflow.Controllers
         {
             var user = await _userManager.GetUserAsync(User);
 
-            if (request.Type == "task")
+            Console.WriteLine($"SetItemDate called - ID: {request.Id}, Type: {request.Type}, IsStart: {request.IsStart}, Date: {request.Date}");
+
+            // Parse the date carefully to preserve the exact time
+            DateTime dateToSave;
+
+            if (request.Date.Kind == DateTimeKind.Utc)
+            {
+                // If it's UTC, convert to local
+                dateToSave = request.Date.ToLocalTime();
+            }
+            else
+            {
+                // If it's unspecified or local, use as is
+                dateToSave = request.Date;
+            }
+
+            // Round to nearest hour to match your hourly grid
+            dateToSave = new DateTime(
+                dateToSave.Year,
+                dateToSave.Month,
+                dateToSave.Day,
+                dateToSave.Hour,
+                0,
+                0,
+                DateTimeKind.Local
+            );
+
+            if (request.Type?.ToLower() == "task")
             {
                 var task = await _context.Tasks
                     .FirstOrDefaultAsync(t => t.Id == request.Id && t.UserId == user.Id);
 
-                if (task == null) return NotFound();
+                if (task == null)
+                {
+                    Console.WriteLine($"Task not found with ID: {request.Id}");
+                    return NotFound();
+                }
 
                 if (request.IsStart)
                 {
-                    task.StartDate = request.Date;
+                    task.StartDate = dateToSave;
+                    Console.WriteLine($"Updated task {request.Id} StartDate to {dateToSave}");
                 }
                 else
                 {
-                    task.EndDate = request.Date;
+                    task.EndDate = dateToSave;
+                    Console.WriteLine($"Updated task {request.Id} EndDate to {dateToSave}");
                 }
 
                 task.UpdatedAt = DateTime.UtcNow;
             }
-            else
+            else // subtask
             {
                 var subtask = await _context.SubTasks
                     .Include(st => st.TaskItem)
                     .FirstOrDefaultAsync(st => st.Id == request.Id && st.TaskItem.UserId == user.Id);
 
-                if (subtask == null) return NotFound();
+                if (subtask == null)
+                {
+                    Console.WriteLine($"Subtask not found with ID: {request.Id}");
+                    return NotFound();
+                }
 
                 if (request.IsStart)
                 {
-                    subtask.StartDate = request.Date;
+                    subtask.StartDate = dateToSave;
+                    Console.WriteLine($"Updated subtask {request.Id} StartDate to {dateToSave}");
                 }
                 else
                 {
-                    subtask.EndDate = request.Date;
+                    subtask.EndDate = dateToSave;
+                    Console.WriteLine($"Updated subtask {request.Id} EndDate to {dateToSave}");
                 }
             }
 
@@ -1187,38 +1232,41 @@ namespace TaskOverflow.Controllers
             var headers = new List<DateTime>();
             var current = start;
 
+            // Cap the number of headers to prevent performance issues
+            int maxHeaders = 500; // Maximum number of cells to display
+
             switch (zoom)
             {
                 case TimelineZoomLevel.Hours:
-                    while (current <= end)
+                    while (current <= end && headers.Count < maxHeaders)
                     {
                         headers.Add(current);
                         current = current.AddHours(1);
                     }
                     break;
                 case TimelineZoomLevel.HalfDays:
-                    while (current <= end)
+                    while (current <= end && headers.Count < maxHeaders)
                     {
                         headers.Add(current);
                         current = current.AddHours(12);
                     }
                     break;
                 case TimelineZoomLevel.Days:
-                    while (current <= end)
+                    while (current <= end && headers.Count < maxHeaders)
                     {
                         headers.Add(current);
                         current = current.AddDays(1);
                     }
                     break;
                 case TimelineZoomLevel.Weeks:
-                    while (current <= end)
+                    while (current <= end && headers.Count < maxHeaders)
                     {
                         headers.Add(current);
                         current = current.AddDays(7);
                     }
                     break;
                 case TimelineZoomLevel.Months:
-                    while (current <= end)
+                    while (current <= end && headers.Count < maxHeaders)
                     {
                         headers.Add(current);
                         current = current.AddMonths(1);
@@ -1254,8 +1302,12 @@ namespace TaskOverflow.Controllers
                 IsCompleted = subtask.IsCompleted,
                 Level = level,
                 ColorCode = subtask.ColorCode ?? GetDefaultColor(level),
+                ParentSubTaskId = subtask.ParentSubTaskId,  // CRITICAL: This must be set!
                 Children = new List<TimelineItemViewModel>()
             };
+
+            // Debug log to verify
+            Console.WriteLine($"Building item: Id={subtask.Id}, Title={subtask.Title}, ParentSubTaskId={subtask.ParentSubTaskId}, Level={level}");
 
             var children = allSubtasks
                 .Where(st => st.ParentSubTaskId == subtask.Id)
@@ -1305,7 +1357,7 @@ namespace TaskOverflow.Controllers
         public class SetItemDateRequest
         {
             public int Id { get; set; }
-            public string Type { get; set; } = string.Empty; // "task" or "subtask"
+            public string Type { get; set; } = string.Empty;
             public DateTime Date { get; set; }
             public bool IsStart { get; set; }
         }
