@@ -484,3 +484,271 @@
     [data-theme="dark"] .table tbody tr td.text-center .text-muted {
         color: var(--text-secondary) !important;
     }
+
+    /* ===== TIMELINE VIEW ===== */
+    [data-theme="dark"] .tl-root {
+        background: var(--bg-primary) !important;
+        --tl-border: var(--border-color) !important;
+        --tl-row-hover: rgba(109, 140, 255, 0.07) !important;
+        --tl-accent-glow: rgba(109, 140, 255, 0.10) !important;
+    }
+
+    [data-theme="dark"] .tl-topbar {
+        background: var(--bg-secondary) !important;
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-title {
+        color: var(--text-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-labels {
+        background: var(--bg-secondary) !important;
+        border-right-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-labels-header {
+        color: var(--text-muted) !important;
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-label-row {
+        border-bottom-color: var(--border-color) !important;
+    }
+
+        [data-theme="dark"] .tl-label-row:hover {
+            background: var(--tl-row-hover) !important;
+        }
+
+    [data-theme="dark"] .tl-label-name {
+        color: var(--text-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-label-dates {
+        color: var(--text-muted) !important;
+    }
+
+    [data-theme="dark"] .tl-toggle-btn {
+        border-color: var(--border-color) !important;
+        color: var(--accent-primary) !important;
+        background: transparent !important;
+    }
+
+        [data-theme="dark"] .tl-toggle-btn:hover {
+            background: var(--tl-accent-glow) !important;
+            border-color: var(--accent-primary) !important;
+        }
+
+    [data-theme="dark"] .tl-pill-done {
+        background: rgba(13, 214, 160, 0.15) !important;
+        color: #0dd6a0 !important;
+    }
+
+    [data-theme="dark"] .tl-pill-active {
+        background: rgba(109, 140, 255, 0.15) !important;
+        color: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-pill-pending {
+        background: rgba(156, 163, 175, 0.15) !important;
+        color: var(--text-secondary) !important;
+    }
+
+    [data-theme="dark"] .tl-scroll {
+        scrollbar-color: var(--border-color) transparent !important;
+    }
+
+        [data-theme="dark"] .tl-scroll::-webkit-scrollbar-thumb {
+            background: var(--border-color) !important;
+        }
+
+    [data-theme="dark"] .tl-date-header {
+        background: var(--bg-secondary) !important;
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-month-group {
+        border-right-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-month-label {
+        color: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-day-cell {
+        color: var(--text-muted) !important;
+        border-right-color: var(--border-color) !important;
+    }
+
+        [data-theme="dark"] .tl-day-cell.tl-weekend {
+            background: rgba(255, 255, 255, 0.02) !important;
+        }
+
+        [data-theme="dark"] .tl-day-cell.tl-today {
+            background: rgba(109, 140, 255, 0.12) !important;
+            color: var(--accent-primary) !important;
+        }
+
+    [data-theme="dark"] .tl-grid-row {
+        border-bottom-color: var(--border-color) !important;
+    }
+
+        [data-theme="dark"] .tl-grid-row:hover {
+            background: rgba(109, 140, 255, 0.05) !important;
+        }
+
+    [data-theme="dark"] .tl-grid-cell {
+        border-right-color: var(--border-color) !important;
+    }
+
+        [data-theme="dark"] .tl-grid-cell.tl-weekend {
+            background: rgba(255, 255, 255, 0.02) !important;
+        }
+
+        [data-theme="dark"] .tl-grid-cell.tl-today {
+            background: rgba(109, 140, 255, 0.10) !important;
+        }
+
+    [data-theme="dark"] .tl-today-line {
+        background: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-today-badge {
+        background: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-drag-overlay {
+        background: rgba(109, 140, 255, 0.12) !important;
+        border-color: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-drag-tooltip {
+        background: var(--accent-primary) !important;
+    }
+
+    /* ===== DETAILS PAGE — SUBTASK LIST ===== */
+    [data-theme="dark"] .list-group-item {
+        background-color: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+    }
+
+        [data-theme="dark"] .list-group-item:hover {
+            background-color: var(--bg-secondary) !important;
+        }
+
+    [data-theme="dark"] .form-check-label {
+        color: var(--text-primary) !important;
+    }
+
+        [data-theme="dark"] .form-check-label.text-muted {
+            color: var(--text-secondary) !important;
+        }
+
+    [data-theme="dark"] .progress {
+        background-color: var(--bg-secondary) !important;
+    }
+
+    [data-theme="dark"] .progress-bar.bg-success {
+        background: linear-gradient(90deg, #0dd6a0, #118ab2) !important;
+    }
+    /* ===== EDIT PAGE — TABS, SUBTASK TREE, PROGRESS RING ===== */
+
+    /* Tab bar */
+    [data-theme="dark"] .et-tabs {
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .et-tab {
+        color: var(--text-secondary) !important;
+    }
+
+        [data-theme="dark"] .et-tab:hover {
+            color: var(--accent-primary) !important;
+        }
+
+        [data-theme="dark"] .et-tab.active {
+            color: var(--accent-primary) !important;
+            border-bottom-color: var(--accent-primary) !important;
+        }
+
+    /* Subtask tree items */
+    [data-theme="dark"] .st-item {
+        background: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+    }
+
+        [data-theme="dark"] .st-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        }
+
+    [data-theme="dark"] .st-title {
+        color: var(--text-primary) !important;
+    }
+
+        [data-theme="dark"] .st-title.done {
+            color: var(--text-muted) !important;
+        }
+
+    [data-theme="dark"] .st-meta {
+        color: var(--text-muted) !important;
+    }
+
+    [data-theme="dark"] .st-toggle {
+        border-color: var(--border-color) !important;
+        color: var(--text-secondary) !important;
+    }
+
+        [data-theme="dark"] .st-toggle:hover {
+            border-color: var(--accent-primary) !important;
+            color: var(--accent-primary) !important;
+            background: rgba(109, 140, 255, 0.08) !important;
+        }
+
+    /* Add-child inline form */
+    [data-theme="dark"] .st-add-form {
+        background: var(--bg-secondary) !important;
+        border-top-color: var(--border-color) !important;
+    }
+
+    /* Progress ring */
+    [data-theme="dark"] .pct-ring svg circle:first-child {
+        stroke: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .pct-ring svg circle:last-child {
+        stroke: var(--accent-primary) !important;
+    }
+
+    [data-theme="dark"] .pct-ring-num {
+        color: var(--accent-primary) !important;
+    }
+
+    /* Sidebar summary list */
+    [data-theme="dark"] .list-group-flush .list-group-item {
+        background-color: transparent !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* Quick actions list group */
+    [data-theme="dark"] .list-group-item-action {
+        background-color: var(--bg-card) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+    }
+
+        [data-theme="dark"] .list-group-item-action:hover {
+            background-color: var(--bg-secondary) !important;
+            color: var(--accent-primary) !important;
+        }
+
+        [data-theme="dark"] .list-group-item-action.text-danger:hover {
+            color: var(--accent-danger) !important;
+        }
+
+    /* "No subtasks" empty state */
+    [data-theme="dark"] #subtaskTree + .text-center,
+    [data-theme="dark"] .et-panel .text-muted {
+        color: var(--text-secondary) !important;
+    }

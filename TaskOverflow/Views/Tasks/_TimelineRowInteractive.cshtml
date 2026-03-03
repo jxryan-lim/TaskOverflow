@@ -1,19 +1,4 @@
-﻿@* ─────────────────────────────────────────────────────────────────
-   _TimelineRow.cshtml  — LEAN BAR PARTIAL
-
-   This partial renders ONE label row + ONE grid row + ONE bar.
-   It knows NOTHING about:
-     - date headers        (live in TimelineView.cshtml)
-     - today markers       (live in TimelineView.cshtml)
-     - grid lines          (live in TimelineView.cshtml)
-     - time labels         (live in TimelineView.cshtml)
-
-   ViewData expected:
-     timelineStart  DateTime
-     cellWidth      int
-     level          int        (0 = top-level task)
-   ───────────────────────────────────────────────────────────────── *@
-@model TimelineItemViewModel
+﻿@model TimelineItemViewModel
 @using TaskOverflow.Models
 @{
     var timelineStart = (DateTime)ViewData["timelineStart"]!;
