@@ -390,7 +390,10 @@ namespace TaskOverflow.Models
         public int PendingTasks { get; set; }
         public int OverdueTasks { get; set; }
         public Dictionary<CategoryType, int> TasksByCategory { get; set; } = new();
+
         public List<UpcomingTask> UpcomingTasks { get; set; } = new();
+
+        public List<UnscheduledTask> UnscheduledTasks { get; set; } = new();
     }
 
     public class UpcomingTask
@@ -398,7 +401,19 @@ namespace TaskOverflow.Models
         public int Id { get; set; }
         public string Description { get; set; } = string.Empty;
         public CategoryType Category { get; set; }
+        public bool IsCompleted { get; set; }
         public DateTime DueDate { get; set; }
+        public DateTime? StartDate { get; set; }  // ← add this
+        public DateTime? EndDate { get; set; }  // ← add this
         public int DaysRemaining => (DueDate - DateTime.Today).Days;
     }
+
+    public class UnscheduledTask
+    {
+        public int Id { get; set; }
+        public string? Description { get; set; }
+        public CategoryType Category { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
 }

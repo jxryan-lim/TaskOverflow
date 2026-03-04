@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/animations.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/dark-mode.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     <header>
@@ -37,13 +39,13 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Tasks" asp-action="Index">
-                                    <i class="bi bi-list-task"></i> My Tasks
+                                <a class="nav-link" asp-controller="Tasks" asp-action="Dashboard">
+                                    <i class="bi bi-speedometer2"></i> Dashboard
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="Tasks" asp-action="Timeline">
-                                    <i class="bi bi-calendar-week"></i> Timeline
+                                <a class="nav-link" asp-controller="Tasks" asp-action="Index">
+                                    <i class="bi bi-list-task"></i> My Tasks
                                 </a>
                             </li>
                         }

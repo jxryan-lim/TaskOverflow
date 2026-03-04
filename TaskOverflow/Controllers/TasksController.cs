@@ -634,6 +634,62 @@ namespace TaskOverflow.Controllers
             }
         }
 
+        [Authorize]
+        public async Task<IActionResult> Dashboard()
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var allTasks = await _context.Tasks
+                .Where(t => t.UserId == userId && !t.IsDeleted)
+                .ToListAsync();
+
+            var today = DateTime.Today;
+            var overdue = allTasks.Where(t => !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value.Date < today).ToList();
+            var completed = allTasks.Where(t => t.IsCompleted).ToList();
+
+            var vm = new DashboardViewModel
+            {
+                TotalTasks = allTasks.Count,
+                CompletedTasks = completed.Count,
+                PendingTasks = allTasks.Count(t => !t.IsCompleted),
+                OverdueTasks = overdue.Count,
+                TasksByCategory = allTasks
+                    .GroupBy(t => t.Category)
+                    .ToDictionary(g => g.Key, g => g.Count()),
+
+                // Tasks WITH a due date → calendar events
+                UpcomingTasks = allTasks
+                    .Where(t => t.DueDate.HasValue)
+                    .OrderBy(t => t.DueDate)
+                    .Select(t => new UpcomingTask
+                    {
+                        Id = t.Id,
+                        Description = t.Description,
+                        Category = t.Category,
+                        IsCompleted = t.IsCompleted,
+                        DueDate = t.DueDate!.Value,
+                        StartDate = t.StartDate, 
+                        EndDate = t.EndDate     
+                    })
+                    .ToList(),
+
+                // Tasks WITHOUT a due date → unscheduled panel
+                UnscheduledTasks = allTasks
+                    .Where(t => !t.DueDate.HasValue)
+                    .OrderBy(t => t.Category)
+                    .Select(t => new UnscheduledTask
+                    {
+                        Id = t.Id,
+                        Description = t.Description,
+                        Category = t.Category,
+                        IsCompleted = t.IsCompleted
+                    })
+                    .ToList()
+            };
+
+            return View(vm);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Reorder([FromBody] List<TaskOrder> orders)
         {
@@ -1182,6 +1238,76 @@ namespace TaskOverflow.Controllers
             return Ok();
         }
 
+        /// <summary>
+        /// POST /Tasks/UpdateDueDate
+        /// Called when the user drags a calendar event to a new day (or drops an
+        /// unscheduled chip onto the calendar).  Optionally also sets the hour.
+        /// </summary>
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateDueDate([FromBody] UpdateDueDateRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = _userManager.GetUserId(User);
+            var task = await _context.Tasks
+                                       .FirstOrDefaultAsync(t => t.Id == req.TaskId
+                                                               && t.UserId == userId);
+            if (task is null) return NotFound();
+
+            if (!DateTime.TryParse(req.NewDate, out var parsedEnd))
+                return BadRequest("Invalid date format. Expected yyyy-MM-dd.");
+
+            int hour = req.Hour ?? task.DueDate?.Hour ?? 0;
+            int minute = task.DueDate?.Minute ?? 0;
+
+            // Always update DueDate (the drop target / end date)
+            task.DueDate = new DateTime(parsedEnd.Year, parsedEnd.Month, parsedEnd.Day, hour, minute, 0);
+
+            // If a new start date was provided (multi-day drag/resize), update StartDate too
+            if (!string.IsNullOrEmpty(req.NewStart) && DateTime.TryParse(req.NewStart, out var parsedStart))
+            {
+                task.StartDate = new DateTime(parsedStart.Year, parsedStart.Month, parsedStart.Day, hour, minute, 0);
+                task.EndDate = task.DueDate;  // keep EndDate in sync with DueDate
+            }
+
+            task.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, dueDate = task.DueDate });
+        }
+
+        /// <summary>
+        /// POST /Tasks/UpdateDueHour
+        /// Legacy endpoint — changes only the hour within the same day.
+        /// </summary>
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateDueHour([FromBody] UpdateDueHourRequest req)
+        {
+            var userId = _userManager.GetUserId(User);
+            var task = await _context.Tasks
+                                       .FirstOrDefaultAsync(t => t.Id == req.TaskId
+                                                               && t.UserId == userId);
+            if (task is null)
+                return NotFound();
+
+            if (task.DueDate.HasValue)
+            {
+                task.DueDate = new DateTime(
+                    task.DueDate.Value.Year,
+                    task.DueDate.Value.Month,
+                    task.DueDate.Value.Day,
+                    req.Hour, 0, 0);
+                task.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { success = true });
+        }
+
         private List<DateTime> GenerateDateHeaders(DateTime start, DateTime end, TimelineZoomLevel zoom)
         {
             var headers = new List<DateTime>();
@@ -1331,6 +1457,21 @@ namespace TaskOverflow.Controllers
         {
             public int Id { get; set; }
             public string Title { get; set; } = string.Empty;
+        }
+
+        public class UpdateDueDateRequest
+        {
+            public int TaskId { get; set; }
+            public string NewDate { get; set; } = string.Empty; // yyyy-MM-dd  (maps to DueDate / EndDate)
+            public string? NewStart { get; set; }                  // yyyy-MM-dd  (maps to StartDate) — optional
+            public int? Hour { get; set; }
+        }
+
+        // Kept for backwards-compat with the old time-grid endpoint
+        public class UpdateDueHourRequest
+        {
+            public int TaskId { get; set; }
+            public int Hour { get; set; }
         }
     }
 }
