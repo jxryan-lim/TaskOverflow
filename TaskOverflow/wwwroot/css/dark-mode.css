@@ -625,6 +625,62 @@
     [data-theme="dark"] .tl-drag-tooltip {
         background: var(--accent-primary) !important;
     }
+    [data-theme="dark"] .tl-day-group {
+        border-right-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-day-label {
+        color: var(--accent-primary) !important;
+        border-bottom-color: var(--border-color) !important;
+    }
+
+    [data-theme="dark"] .tl-hour-cell {
+        color: var(--text-secondary) !important;
+        border-right-color: var(--border-color) !important;
+        background: var(--bg-secondary) !important;
+    }
+
+        [data-theme="dark"] .tl-hour-cell.tl-night-hour {
+            background: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        [data-theme="dark"] .tl-hour-cell.tl-today {
+            background: rgba(109, 140, 255, 0.15) !important;
+            color: var(--accent-primary) !important;
+        }
+
+        [data-theme="dark"] .tl-hour-cell.tl-col-selected {
+            background: rgba(109, 140, 255, 0.25) !important;
+            color: var(--accent-primary) !important;
+        }
+
+    [data-theme="dark"] .tl-hour-num {
+        color: var(--text-primary) !important;
+    }
+
+    [data-theme="dark"] .tl-hour-ampm {
+        color: var(--text-muted) !important;
+    }
+
+    [data-theme="dark"] .tl-grid-cell.tl-night-hour {
+        background: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    [data-theme="dark"] .tl-grid-cell.tl-today {
+        background: rgba(109, 140, 255, 0.12) !important;
+    }
+
+    [data-theme="dark"] .tl-bar {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+
+        [data-theme="dark"] .tl-bar:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        [data-theme="dark"] .tl-bar.tl-bar-dragging {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
+        }
 
     /* ===== DETAILS PAGE — SUBTASK LIST ===== */
     [data-theme="dark"] .list-group-item {

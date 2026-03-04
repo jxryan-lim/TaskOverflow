@@ -3,16 +3,16 @@
 @{
     ViewData["Title"] = "Timeline: " + Model.TaskTitle;
 
-    string ZoomUrl(TimelineZoomLevel z) => Url.Action("TimelineView", new { id = Model.TaskId, zoom = z })!;
+    // Fixed to hours view only
+    const int CELL_WIDTH = 40; // Fixed cell width for hours
+    const int HOURS_PER_DAY = 24;
 
-    int GetWeekNumber(DateTime date)
-    {
-        var culture = System.Globalization.CultureInfo.CurrentCulture;
-        return culture.Calendar.GetWeekOfYear(date, System.Globalization.CalendarWeekRule.FirstDay, DayOfWeek.Monday);
-    }
+    // Calculate today line position in hours
+    double todayOffsetPx = (DateTime.Today - Model.TimelineStartDate.Date).TotalDays * HOURS_PER_DAY * CELL_WIDTH;
+    bool showTodayLine = todayOffsetPx >= 0 && todayOffsetPx <= Model.DateHeaders.Count * HOURS_PER_DAY * CELL_WIDTH;
 
-    double todayOffsetPx = (DateTime.Today - Model.TimelineStartDate.Date).TotalDays * Model.CellWidth;
-    bool showTodayLine = todayOffsetPx >= 0 && todayOffsetPx <= Model.DateHeaders.Count * Model.CellWidth;
+    // Store the main task ID for reference
+    int mainTaskId = Model.TaskId;
 }
 
 @Html.AntiForgeryToken()
@@ -25,15 +25,15 @@
     .tl-root {
         --tl-label-w: 280px;
         --tl-row-h: 56px;
-        --tl-header-h: 52px;
-        --tl-cell-w: @(Model.CellWidth)px;
+        --tl-header-h: 72px; /* Increased height for two-line header */
+        --tl-cell-w: @(CELL_WIDTH)px;
         --tl-accent: #4361ee;
         --tl-accent-glow: rgba(67,97,238,0.10);
         --tl-border: #e5e7eb;
         --tl-row-hover: rgba(67,97,238,0.04);
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 56px); /* adjust 56px to match your navbar height */
+        height: calc(100vh - 56px);
         overflow: hidden;
         background: #fff;
     }
@@ -206,7 +206,7 @@
         color: #6b7280;
     }
 
-    /* RIGHT — ONE shared scroll container. This is the key fix. */
+    /* RIGHT — ONE shared scroll container */
     .tl-scroll {
         flex: 1;
         overflow-x: auto;
@@ -241,13 +241,13 @@
         border-bottom: 1px solid var(--tl-border);
     }
 
-    .tl-month-group {
+    .tl-day-group {
         display: flex;
         flex-direction: column;
         border-right: 1px solid var(--tl-border);
     }
 
-    .tl-month-label {
+    .tl-day-label {
         font-size: 10px;
         font-weight: 700;
         letter-spacing: .07em;
@@ -255,47 +255,57 @@
         color: #4361ee;
         padding: 5px 10px 2px;
         white-space: nowrap;
+        border-bottom: 1px solid #f0f0f0;
     }
 
-    .tl-days-row {
+    .tl-hours-row {
         display: flex;
         flex: 1;
     }
 
-    .tl-day-cell {
+    .tl-hour-cell {
         width: var(--tl-cell-w);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 10px;
         border-right: 1px solid var(--tl-border);
-        gap: 1px;
         color: #9ca3af;
         user-select: none;
+        background: #fff;
     }
 
-        .tl-day-cell.tl-weekend {
-            background: #fafafa;
+        .tl-hour-cell.tl-night-hour {
+            background: #f5f5f5;
         }
 
-        .tl-day-cell.tl-today {
+        .tl-hour-cell.tl-today {
             background: var(--tl-accent-glow);
             color: #4361ee;
             font-weight: 700;
         }
 
-    .tl-day-num {
-        font-size: 13px;
+        .tl-hour-cell.tl-col-selected {
+            background: rgba(67, 97, 238, 0.18) !important;
+            color: #4361ee;
+            font-weight: 700;
+        }
+
+    .tl-hour-num {
+        font-size: 11px;
         font-weight: 600;
+        line-height: 1.2;
     }
 
-    .tl-day-name {
-        font-size: 10px;
+    .tl-hour-ampm {
+        font-size: 8px;
+        opacity: 0.7;
     }
 
     .tl-rows-area {
         position: relative;
+        user-select: none;
     }
 
     .tl-grid-row {
@@ -308,20 +318,46 @@
             background: var(--tl-row-hover);
         }
 
+        .tl-grid-row.tl-drag-active {
+            background: rgba(67, 97, 238, 0.02);
+        }
+
     .tl-grid-cell {
         width: var(--tl-cell-w);
         height: 100%;
         border-right: 1px solid var(--tl-border);
         flex-shrink: 0;
         cursor: crosshair;
+        position: relative;
     }
 
-        .tl-grid-cell.tl-weekend {
+        .tl-grid-cell.tl-night-hour {
             background: #fafafa;
         }
 
         .tl-grid-cell.tl-today {
             background: var(--tl-accent-glow);
+        }
+
+        .tl-grid-cell.tl-cell-selected {
+            background: rgba(67, 97, 238, 0.12) !important;
+        }
+
+            .tl-grid-cell.tl-cell-selected::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-top: 2px solid rgba(67, 97, 238, 0.5);
+                border-bottom: 2px solid rgba(67, 97, 238, 0.5);
+                pointer-events: none;
+            }
+
+        .tl-grid-cell.tl-sel-first::after {
+            border-left: 2px solid rgba(67, 97, 238, 0.8);
+        }
+
+        .tl-grid-cell.tl-sel-last::after {
+            border-right: 2px solid rgba(67, 97, 238, 0.8);
         }
 
     .tl-today-line {
@@ -348,36 +384,34 @@
         white-space: nowrap;
     }
 
-    .tl-drag-overlay {
-        position: absolute;
-        top: 0;
-        height: 100%;
-        background: var(--tl-accent-glow);
-        border: 2px solid #4361ee;
-        border-radius: 4px;
-        z-index: 20;
-        pointer-events: none;
-        display: none;
-    }
-
     .tl-bar {
         position: absolute;
         height: 28px;
-        border-radius: 6px;
+        border-radius: 4px;
         display: flex;
         align-items: center;
-        padding: 0 10px;
-        cursor: pointer;
+        padding: 0 8px;
+        cursor: grab;
         z-index: 5;
         overflow: hidden;
-        transition: filter .15s, transform .1s;
+        transition: filter .15s, box-shadow .15s;
         box-shadow: 0 1px 4px rgba(0,0,0,.12);
+        box-sizing: border-box;
+        font-size: 10px;
     }
 
         .tl-bar:hover {
             filter: brightness(1.12);
-            transform: scaleY(1.08);
+            box-shadow: 0 3px 10px rgba(0,0,0,.18);
             z-index: 7;
+        }
+
+        .tl-bar.tl-bar-dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            box-shadow: 0 6px 20px rgba(0,0,0,.28);
+            z-index: 50;
+            transition: none;
         }
 
         .tl-bar.tl-bar-parent {
@@ -400,7 +434,7 @@
     }
 
     .tl-bar-label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         color: rgba(255,255,255,.95);
         white-space: nowrap;
@@ -414,7 +448,7 @@
     .tl-bar-handle {
         position: absolute;
         top: 0;
-        width: 8px;
+        width: 6px;
         height: 100%;
         cursor: ew-resize;
         opacity: 0;
@@ -471,15 +505,8 @@
 <div class="tl-root">
 
     <div class="tl-topbar">
-        <h1 class="tl-title"><i class="bi bi-calendar3"></i> @Model.TaskTitle</h1>
+        <h1 class="tl-title"><i class="bi bi-calendar3"></i> @Model.TaskTitle (Hourly View)</h1>
         <div class="tl-controls">
-            <div class="btn-group btn-group-sm">
-                <a href="@ZoomUrl(TimelineZoomLevel.Hours)" class="btn @(Model.ZoomLevel==TimelineZoomLevel.Hours    ?"btn-primary":"btn-outline-secondary")">Hours</a>
-                <a href="@ZoomUrl(TimelineZoomLevel.HalfDays)" class="btn @(Model.ZoomLevel==TimelineZoomLevel.HalfDays ?"btn-primary":"btn-outline-secondary")">12h</a>
-                <a href="@ZoomUrl(TimelineZoomLevel.Days)" class="btn @(Model.ZoomLevel==TimelineZoomLevel.Days     ?"btn-primary":"btn-outline-secondary")">Days</a>
-                <a href="@ZoomUrl(TimelineZoomLevel.Weeks)" class="btn @(Model.ZoomLevel==TimelineZoomLevel.Weeks    ?"btn-primary":"btn-outline-secondary")">Weeks</a>
-                <a href="@ZoomUrl(TimelineZoomLevel.Months)" class="btn @(Model.ZoomLevel==TimelineZoomLevel.Months   ?"btn-primary":"btn-outline-secondary")">Months</a>
-            </div>
             <button class="btn btn-sm btn-outline-primary" onclick="scrollToToday()"><i class="bi bi-crosshair"></i> Today</button>
             <a asp-action="Edit" asp-route-id="@Model.TaskId" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
             <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
@@ -498,7 +525,7 @@
                         string color = item.ColorCode ?? "#4361ee";
                         bool isDone = item.IsCompleted;
                         string dates = (item.StartDate.HasValue || item.EndDate.HasValue)
-                        ? $"{item.StartDate?.ToString("MMM dd")} \u2192 {item.EndDate?.ToString("MMM dd")}"
+                        ? $"{item.StartDate?.ToString("MMM dd HH:mm")} \u2192 {item.EndDate?.ToString("MMM dd HH:mm")}"
                         : "No dates set";
                         string pillCss = isDone ? "tl-pill-done" : item.StartDate.HasValue ? "tl-pill-active" : "tl-pill-pending";
                         string pillTxt = isDone ? "Done" : item.StartDate.HasValue ? "Active" : "Pending";
@@ -538,41 +565,43 @@
         <div class="tl-scroll" id="tlScroll">
             <div class="tl-scroll-inner">
 
-                <div class="tl-date-header">
+                <div class="tl-date-header" id="tlDateHeader">
                     @{
-                        var groups = Model.DateHeaders
-                        .GroupBy(d => new { d.Year, d.Month })
-                        .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month);
+                        // Group hours by day - use the fixed timeline range instead of hardcoded 7 days
+                        var hoursByDay = new List<DateTime>();
+                        var currentHour = Model.TimelineStartDate;
+                        var endHour = Model.TimelineEndDate;
 
-                        foreach (var mg in groups)
+                        while (currentHour <= endHour && hoursByDay.Count < 500) // Cap at 500 hours
                         {
-                            <div class="tl-month-group">
-                                <div class="tl-month-label">@mg.First().ToString("MMMM yyyy")</div>
-                                <div class="tl-days-row">
-                                    @foreach (var date in mg)
+                            hoursByDay.Add(currentHour);
+                            currentHour = currentHour.AddHours(1);
+                        }
+
+                        var dayGroups = hoursByDay
+                        .GroupBy(d => d.Date)
+                        .OrderBy(g => g.Key);
+
+                        int colIndex = 0;
+                        foreach (var dayGroup in dayGroups)
+                        {
+                            <div class="tl-day-group">
+                                <div class="tl-day-label">@dayGroup.Key.ToString("ddd MMM d")</div>
+                                <div class="tl-hours-row">
+                                    @foreach (var hour in dayGroup)
                                     {
-                                        bool isWE = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
-                                        bool isToday = date.Date == DateTime.Today;
-                                        string dayNum = Model.ZoomLevel switch
-                                        {
-                                            TimelineZoomLevel.Hours => date.ToString("HH:mm"),
-                                            TimelineZoomLevel.HalfDays => date.Hour < 12 ? "AM" : "PM",
-                                            TimelineZoomLevel.Weeks => $"W{GetWeekNumber(date)}",
-                                            TimelineZoomLevel.Months => date.ToString("MMM"),
-                                            _ => date.Day.ToString()
-                                        };
-                                        string dayName = Model.ZoomLevel switch
-                                        {
-                                            TimelineZoomLevel.Hours => date.ToString("MMM d"),
-                                            TimelineZoomLevel.HalfDays => date.ToString("MMM d"),
-                                            TimelineZoomLevel.Weeks => date.ToString("MMM d"),
-                                            TimelineZoomLevel.Months => date.ToString("yyyy"),
-                                            _ => date.ToString("ddd")
-                                        };
-                                        <div class="tl-day-cell @(isWE?"tl-weekend":"") @(isToday?"tl-today":"")">
-                                            <span class="tl-day-num">@dayNum</span>
-                                            <span class="tl-day-name">@dayName</span>
+                                        bool isNight = hour.Hour < 7 || hour.Hour > 19;
+                                        bool isToday = hour.Date == DateTime.Today;
+
+                                        string hourDisplay = hour.Hour.ToString();
+                                        string ampm = hour.ToString("tt", System.Globalization.CultureInfo.InvariantCulture).ToLower();
+
+                                        <div class="tl-hour-cell @(isNight?"tl-night-hour":"") @(isToday?"tl-today":"")"
+                                             data-col-index="@colIndex">
+                                            <span class="tl-hour-num">@hourDisplay</span>
+                                            <span class="tl-hour-ampm">@ampm</span>
                                         </div>
+                                        colIndex++;
                                     }
                                 </div>
                             </div>
@@ -585,7 +614,7 @@
                     @if (showTodayLine)
                     {
                         <div class="tl-today-line" id="tlTodayLine"
-                             style="left:@(todayOffsetPx.ToString("F0"))px; height:100%;">
+                             style="left:@(Math.Round(todayOffsetPx))px; height:100%;">
                             <div class="tl-today-badge">TODAY</div>
                         </div>
                     }
@@ -595,31 +624,38 @@
                     @{
                         void RenderGridRow(TimelineItemViewModel item, int level)
                         {
+                            // Determine the type based on whether this is the main task or a subtask
+                            string itemType = (item.Id == mainTaskId && !item.ParentSubTaskId.HasValue) ? "task" : "subtask";
+
                             <div class="tl-grid-row" data-row-id="@item.Id"
-                                 data-row-type="@(level == 0 ? "task" : "subtask")"
+                                 data-row-type="@itemType"
                                  data-row-title="@item.Title">
-                                @foreach (var date in Model.DateHeaders)
+                                @for (int i = 0; i < hoursByDay.Count; i++)
                                 {
-                                    bool wknd = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
-                                    bool today = date.Date == DateTime.Today;
-                                    <div class="tl-grid-cell @(wknd?"tl-weekend":"") @(today?"tl-today":"")"
+                                    var hour = hoursByDay[i];
+                                    bool isNight = hour.Hour < 7 || hour.Hour > 19;
+                                    bool isToday = hour.Date == DateTime.Today;
+                                    <div class="tl-grid-cell @(isNight?"tl-night-hour":"") @(isToday?"tl-today":"")"
                                          data-item-id="@item.Id"
-                                         data-item-type="@(level == 0 ? "task" : "subtask")"
-                                         data-item-title="@item.Title"></div>
+                                         data-item-type="@itemType"
+                                         data-item-title="@item.Title"
+                                         data-col-index="@i"></div>
                                 }
                             </div>
                             if (item.Children.Any())
                             {
                                 <div id="grid-children-@item.Id">
-                                    @foreach (var child in item.Children) { RenderGridRow(child, level + 1); }
+                                    @foreach (var child in item.Children)
+                                    {
+                                        RenderGridRow(child, level + 1);
+                                    }
                                 </div>
                             }
                         }
-                        foreach (var item in Model.TimelineItems) { RenderGridRow(item, 0); }
                     }
 
                     @{
-                        int cellW = Model.CellWidth;
+                        int cellW = CELL_WIDTH;
                         void RenderBar(TimelineItemViewModel item, int level)
                         {
                             string color = item.ColorCode ?? "#4361ee";
@@ -630,19 +666,30 @@
 
                             if (item.StartDate.HasValue && item.EndDate.HasValue)
                             {
-                                double barLeft = Math.Max(0, (item.StartDate.Value - Model.TimelineStartDate).TotalDays * cellW);
-                                double barWidth = Math.Max(8, (item.EndDate.Value - item.StartDate.Value).TotalDays * cellW);
+                                // Calculate position based on exact hour boundaries
+                                double startOffset = (item.StartDate.Value - Model.TimelineStartDate).TotalHours;
+                                double endOffset = (item.EndDate.Value - Model.TimelineStartDate).TotalHours;
+
+                                // Ensure minimum width of 1 hour
+                                if (endOffset <= startOffset) endOffset = startOffset + 1;
+
+                                double barLeft = startOffset * cellW;
+                                double barWidth = (endOffset - startOffset) * cellW;
+
                                 <div class="tl-bar @(level==0?"tl-bar-parent":"") @(isDone?"tl-bar-done":"")"
                                      id="bar-@item.Id" data-id="@item.Id"
-                                     style="left:@(barLeft.ToString("F1"))px; width:@(barWidth.ToString("F1"))px; background:@color;"
+                                     data-start="@item.StartDate?.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                     data-end="@item.EndDate?.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                     data-duration-ms="@((long)(item.EndDate.Value - item.StartDate.Value).TotalMilliseconds)"
+                                     style="left:@(Math.Round(barLeft, 1))px; width:@(Math.Round(barWidth, 1))px; background:@color;"
                                      ondblclick="openEditModal(@item.Id,@Html.Raw(titleJs),'@startJs','@endJs','@color',@(isDone?"true":"false"))">
                                     <div class="tl-bar-fill" style="width:@(isDone?"100":"0")%"></div>
-                                    @if (barWidth > 40)
+                                    @if (barWidth > 50)
                                     {
                                         <span class="tl-bar-label">@item.Title</span>
                                     }
-                                    <div class="tl-bar-handle left"></div>
-                                    <div class="tl-bar-handle right"></div>
+                                    <div class="tl-bar-handle left" data-handle="left"></div>
+                                    <div class="tl-bar-handle right" data-handle="right"></div>
                                 </div>
                             }
                             if (item.Children.Any())
@@ -650,7 +697,15 @@
                                 foreach (var child in item.Children) { RenderBar(child, level + 1); }
                             }
                         }
-                        foreach (var item in Model.TimelineItems) { RenderBar(item, 0); }
+                        foreach (var item in Model.TimelineItems)
+                        {
+                            RenderGridRow(item, 0);
+                        }
+
+                        foreach (var item in Model.TimelineItems)
+                        {
+                            RenderBar(item, 0);
+                        }
                     }
 
                 </div>
@@ -674,12 +729,12 @@
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-6">
-                        <label class="form-label fw-semibold">Start Date</label>
-                        <input type="datetime-local" class="form-control" id="meStart" />
+                        <label class="form-label fw-semibold">Start Date/Time</label>
+                        <input type="datetime-local" class="form-control" id="meStart" step="3600" />
                     </div>
                     <div class="col-6">
-                        <label class="form-label fw-semibold">End Date</label>
-                        <input type="datetime-local" class="form-control" id="meEnd" />
+                        <label class="form-label fw-semibold">End Date/Time</label>
+                        <input type="datetime-local" class="form-control" id="meEnd" step="3600" />
                     </div>
                 </div>
                 <div class="mb-3">
@@ -710,24 +765,73 @@
 
 @section Scripts {
     <script>
-        const CELL_W = @Model.CellWidth;
-        const ZOOM = @((int)Model.ZoomLevel);
-        const TL_START = new Date('@Model.TimelineStartDate.ToString("yyyy-MM-ddTHH:mm:ss")');
+        const CELL_W = @CELL_WIDTH;
+        const TL_START = new Date('@Model.TimelineStartDate.ToString("yyyy-MM-dd HH:mm:ss")');
         const CSRF = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        // Calculate total hours based on the hoursByDay list we created
+        const TOTAL_HOURS = @hoursByDay.Count;
+
+        console.log('Timeline initialized:', {
+            cellWidth: CELL_W,
+            totalHours: TOTAL_HOURS,
+            startDate: TL_START.toISOString(),
+            hasRowsArea: !!document.getElementById('tlRowsArea')
+        });
 
         const tlScroll = document.getElementById('tlScroll');
         const tlLabelsBody = document.getElementById('tlLabelsBody');
+        const rowsArea = document.getElementById('tlRowsArea');
+        const tooltip = document.getElementById('tlDragTooltip');
 
-        // Sync vertical scroll between labels and timeline
+        if (!rowsArea) {
+            console.error('Rows area not found!');
+        }
+
+        // ─── Sync vertical scroll ────────────────────────────────────────────
         tlScroll.addEventListener('scroll', () => {
             tlLabelsBody.scrollTop = tlScroll.scrollTop;
         }, { passive: true });
 
-        // Position each bar over its matching grid row by ID
+        // ─── Helpers ─────────────────────────────────────────────────────────
+        function fmtDate(d) {
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtHour(d) {
+            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        }
+
+        /** Snap a pixel offset to the nearest hour cell boundary */
+        function snapPxToCell(px) {
+            return Math.round(px / CELL_W) * CELL_W;
+        }
+
+        /** Convert pixel offset from TL_START → Date (start of hour) */
+        function pxToDate(px) {
+            const hours = px / CELL_W;
+            const date = new Date(TL_START.getTime() + hours * 60 * 60 * 1000);
+            // Round to the nearest hour to ensure consistency
+            date.setMinutes(0, 0, 0);
+            return date;
+        }
+
+        /** Convert pixel offset from TL_START → Date (end of hour for right edge) */
+        function pxToDateEnd(px) {
+            const hours = px / CELL_W;
+            const date = new Date(TL_START.getTime() + hours * 60 * 60 * 1000);
+            // Set to the end of the hour (59:59.999)
+            date.setMinutes(59, 59, 999);
+            return date;
+        }
+
+        /** Position bars above their matching grid rows */
         function positionBars() {
-            const rowsArea = document.getElementById('tlRowsArea');
-            document.querySelectorAll('.tl-bar').forEach(bar => {
-                const row = rowsArea.querySelector(`.tl-grid-row[data-row-id="${bar.dataset.id}"]`);
+            const bars = document.querySelectorAll('.tl-bar');
+            if (!bars.length) return;
+
+            bars.forEach(bar => {
+                const row = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${bar.dataset.id}"]`);
                 if (!row) return;
                 const barH = bar.classList.contains('tl-bar-parent') ? 20 : 28;
                 bar.style.top = (row.offsetTop + (row.offsetHeight - barH) / 2) + 'px';
@@ -751,68 +855,364 @@
         function scrollToToday() {
             const line = document.getElementById('tlTodayLine');
             if (!line) return;
-            tlScroll.scrollTo({ left: Math.max(0, parseInt(line.style.left) - tlScroll.clientWidth / 2), behavior: 'smooth' });
+            const left = parseInt(line.style.left) || 0;
+            tlScroll.scrollTo({ left: Math.max(0, left - tlScroll.clientWidth / 2), behavior: 'smooth' });
         }
 
-        function unitMs() {
-            return [3600000, 43200000, 86400000, 604800000, 2592000000][ZOOM] ?? 86400000;
-        }
+        // ─── Excel-style drag-to-select on grid cells ────────────────────────
+        let selDragging = false;
+        let selItemId, selItemType, selItemTitle;
+        let selStartCol, selEndCol;  // column indices (integers)
 
-        // Drag-to-create date ranges
-        let dragging = false, dragItemId, dragItemType, dragItemTitle, dragStartX;
-        const overlay = document.getElementById('tlDragOverlay');
-        const tooltip = document.getElementById('tlDragTooltip');
-        const rowsArea = document.getElementById('tlRowsArea');
+        function paintSelection(minCol, maxCol, rowId) {
+            // Clear previous selections
+            document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+            document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
 
-        rowsArea.addEventListener('mousedown', e => {
-            const cell = e.target.closest('.tl-grid-cell');
-            if (!cell) return;
-            e.preventDefault();
-            dragItemId = cell.dataset.itemId; dragItemType = cell.dataset.itemType; dragItemTitle = cell.dataset.itemTitle;
-            dragStartX = e.clientX; dragging = true;
-            const relX = e.clientX - rowsArea.getBoundingClientRect().left + tlScroll.scrollLeft;
-            overlay.style.cssText = `left:${relX}px;width:0;top:0;height:100%;display:block;`;
-            document.addEventListener('mousemove', onDragMove);
-            document.addEventListener('mouseup', onDragEnd);
-        });
+            // Highlight header hour cells (this is fine - shows which columns are selected)
+            document.querySelectorAll('.tl-hour-cell[data-col-index]').forEach(el => {
+                const ci = parseInt(el.dataset.colIndex);
+                if (ci >= minCol && ci <= maxCol) {
+                    el.classList.add('tl-col-selected');
+                }
+            });
 
-        function onDragMove(e) {
-            if (!dragging) return;
-            const aL = rowsArea.getBoundingClientRect().left, sc = tlScroll.scrollLeft;
-            const s = dragStartX - aL + sc, c = e.clientX - aL + sc;
-            overlay.style.left = Math.min(s, c) + 'px'; overlay.style.width = Math.abs(c - s) + 'px';
-            const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            tooltip.textContent = `${fmt(new Date(TL_START.getTime() + (Math.min(s, c) / CELL_W) * unitMs()))} \u2192 ${fmt(new Date(TL_START.getTime() + (Math.max(s, c) / CELL_W) * unitMs()))}`;
-            tooltip.style.cssText = `left:${e.clientX + 14}px;top:${e.clientY - 32}px;display:block;`;
-        }
+            // ONLY highlight grid cells in the SPECIFIC row being dragged
+            const targetRow = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${rowId}"]`);
+            if (!targetRow) return;
 
-        async function onDragEnd(e) {
-            if (!dragging) return;
-            dragging = false;
-            overlay.style.display = 'none'; tooltip.style.display = 'none';
-            document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('mouseup', onDragEnd);
-            const aL = rowsArea.getBoundingClientRect().left, sc = tlScroll.scrollLeft;
-            const s = dragStartX - aL + sc, c = e.clientX - aL + sc;
-            if (Math.abs(c - s) < 5) return;
-            const hr = 3600000;
-            const startMs = Math.round((TL_START.getTime() + (Math.min(s, c) / CELL_W) * unitMs()) / hr) * hr;
-            const endMs = Math.max(Math.round((TL_START.getTime() + (Math.max(s, c) / CELL_W) * unitMs()) / hr) * hr, startMs + hr);
-            const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            if (!confirm(`Set "${dragItemTitle}"\n${fmt(new Date(startMs))} \u2192 ${fmt(new Date(endMs))}`)) return;
-            await Promise.all([postDate(dragItemId, dragItemType, new Date(startMs).toISOString(), true),
-            postDate(dragItemId, dragItemType, new Date(endMs).toISOString(), false)]);
-            location.reload();
-        }
-
-        async function postDate(id, type, iso, isStart) {
-            return fetch('/Tasks/SetItemDate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': CSRF },
-                body: JSON.stringify({ id: parseInt(id), type, date: iso, isStart })
+            targetRow.querySelectorAll('.tl-grid-cell[data-col-index]').forEach(el => {
+                const ci = parseInt(el.dataset.colIndex);
+                if (ci >= minCol && ci <= maxCol) {
+                    el.classList.add('tl-cell-selected');
+                    if (ci === minCol) el.classList.add('tl-sel-first');
+                    if (ci === maxCol) el.classList.add('tl-sel-last');
+                }
             });
         }
 
+        function clearSelection() {
+            // Clear header highlights
+            document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+
+            // Clear ALL cell selections (but we'll only highlight one row at a time anyway)
+            document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
+        }
+
+        /** Get column index from a mouse X position inside the scroll area */
+        function colIndexFromClientX(clientX) {
+            if (!rowsArea) return 0;
+
+            const rect = rowsArea.getBoundingClientRect();
+            const scrollLeft = tlScroll.scrollLeft;
+
+            // Get all grid cells in the first row to find their positions
+            const firstRow = rowsArea.querySelector('.tl-grid-row');
+            if (!firstRow) return 0;
+
+            const cells = firstRow.querySelectorAll('.tl-grid-cell');
+            if (!cells.length) return 0;
+
+            // Find the cell that contains this mouse position
+            for (let i = 0; i < cells.length; i++) {
+                const cellRect = cells[i].getBoundingClientRect();
+                const cellLeft = cellRect.left;
+                const cellRight = cellRect.right;
+
+                // Check if mouse is within this cell's bounds
+                if (clientX >= cellLeft && clientX <= cellRight) {
+                    return i; // Return the actual column index
+                }
+            }
+
+            // If we didn't find a cell, calculate based on position
+            const px = clientX - rect.left + scrollLeft;
+            let col = Math.floor(px / CELL_W);
+            col = Math.min(cells.length - 1, Math.max(0, col));
+
+            return col;
+        }
+
+        if (rowsArea) {
+            rowsArea.addEventListener('mousedown', e => {
+                // Ignore if clicking on a bar or handle — bar drag will handle it
+                if (e.target.closest('.tl-bar')) return;
+
+                const cell = e.target.closest('.tl-grid-cell');
+                if (!cell) return;
+
+                e.preventDefault();
+
+                // DEBUG: Log the cell's data attributes
+                console.log('Cell clicked:', {
+                    id: cell.dataset.itemId,
+                    type: cell.dataset.itemType,
+                    title: cell.dataset.itemTitle,
+                    colIndex: cell.dataset.colIndex,
+                    actualElement: cell.outerHTML
+                });
+
+                // Remove active class from any previously active row
+                document.querySelectorAll('.tl-grid-row.tl-drag-active').forEach(el => {
+                    el.classList.remove('tl-drag-active');
+                });
+
+                // Add active class to the current row
+                const currentRow = cell.closest('.tl-grid-row');
+                if (currentRow) {
+                    currentRow.classList.add('tl-drag-active');
+                }
+
+                selItemId = cell.dataset.itemId;
+                selItemType = cell.dataset.itemType;
+                selItemTitle = cell.dataset.itemTitle;
+                selStartCol = parseInt(cell.dataset.colIndex);
+                selEndCol = selStartCol;
+                selDragging = true;
+
+                paintSelection(selStartCol, selEndCol, selItemId);
+                showSelTooltip(e, selStartCol, selEndCol);
+
+                document.addEventListener('mousemove', onSelMove);
+                document.addEventListener('mouseup', onSelEnd);
+            });
+        }
+
+        function onSelMove(e) {
+            if (!selDragging) return;
+
+            // Get the column index based on actual cell positions
+            const col = colIndexFromClientX(e.clientX);
+
+            // Only update if the column changed
+            if (col !== selEndCol) {
+                selEndCol = col;
+                const minC = Math.min(selStartCol, selEndCol);
+                const maxC = Math.max(selStartCol, selEndCol);
+
+                // Clear previous selection first
+                document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+                document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                    .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
+
+                // Paint new selection
+                paintSelection(minC, maxC, selItemId);
+                showSelTooltip(e, minC, maxC);
+            }
+        }
+
+        function showSelTooltip(e, minC, maxC) {
+            // Start date is the beginning of the first selected cell
+            const startDate = pxToDate(minC * CELL_W);
+
+            // End date is the END of the last selected cell
+            const endDate = pxToDateEnd((maxC + 1) * CELL_W);
+
+            tooltip.textContent = `${fmtDate(startDate)} → ${fmtDate(endDate)}`;
+            tooltip.style.cssText = `left:${e.clientX + 14}px;top:${e.clientY - 32}px;display:block;`;
+        }
+
+        async function onSelEnd(e) {
+            if (!selDragging) return;
+            selDragging = false;
+            tooltip.style.display = 'none';
+
+            // Remove drag active class
+            document.querySelectorAll('.tl-grid-row.tl-drag-active').forEach(el => {
+                el.classList.remove('tl-drag-active');
+            });
+
+            document.removeEventListener('mousemove', onSelMove);
+            document.removeEventListener('mouseup', onSelEnd);
+
+            const minC = Math.min(selStartCol, selEndCol);
+            const maxC = Math.max(selStartCol, selEndCol);
+            clearSelection();
+
+            // If it was just a click (no drag), skip
+            if (minC === maxC && selStartCol === selEndCol) return;
+
+            // Calculate dates at cell boundaries
+            const startDate = pxToDate(minC * CELL_W);
+            const endDate = pxToDateEnd((maxC + 1) * CELL_W);
+
+            console.log('Selected range:', {
+                itemId: selItemId,
+                itemType: selItemType,
+                itemTitle: selItemTitle,
+                startDate: fmtDate(startDate),
+                endDate: fmtDate(endDate),
+                startISO: startDate.toISOString(),
+                endISO: endDate.toISOString(),
+                startLocal: startDate.toString(),
+                endLocal: endDate.toString()
+            });
+
+            if (!confirm(`Set "${selItemTitle}"\n${fmtDate(startDate)} → ${fmtDate(endDate)}`)) return;
+
+            try {
+                const startResult = await postDate(selItemId, selItemType, startDate.toISOString(), true);
+                const endResult = await postDate(selItemId, selItemType, endDate.toISOString(), false);
+
+                if (startResult.ok && endResult.ok) {
+                    console.log('Both dates saved successfully');
+                    location.reload();
+                } else {
+                    console.error('Failed to save dates');
+                    alert('Failed to save dates. Check console for details.');
+                }
+            } catch (error) {
+                console.error('Error saving dates:', error);
+                alert('Error saving dates: ' + error.message);
+            }
+        }
+
+        // ─── Bar drag: MOVE (grab body) + RESIZE (grab handles) ─────────────
+        let barDrag = null;
+
+        document.addEventListener('mousedown', e => {
+            const handle = e.target.closest('.tl-bar-handle');
+            const bar = e.target.closest('.tl-bar');
+            if (!bar) return;
+
+            if (e.detail >= 2) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const mode = handle
+                ? (handle.dataset.handle === 'left' ? 'left' : 'right')
+                : 'move';
+
+            barDrag = {
+                bar,
+                mode,
+                startX: e.clientX,
+                origLeft: parseFloat(bar.style.left),
+                origWidth: parseFloat(bar.style.width),
+                durationMs: parseInt(bar.dataset.durationMs || 0),
+            };
+
+            bar.classList.add('tl-bar-dragging');
+            bar.style.transition = 'none';
+
+            document.addEventListener('mousemove', onBarMove);
+            document.addEventListener('mouseup', onBarUp);
+        });
+
+        function onBarMove(e) {
+            if (!barDrag) return;
+            const dx = e.clientX - barDrag.startX;
+
+            if (barDrag.mode === 'move') {
+                const rawLeft = barDrag.origLeft + dx;
+                const snapped = Math.round(rawLeft / CELL_W) * CELL_W;
+                barDrag.bar.style.left = snapped + 'px';
+
+                const newStart = pxToDate(snapped);
+                const newEnd = pxToDateEnd(snapped + barDrag.origWidth);
+                tooltip.textContent = `${fmtDate(newStart)} → ${fmtDate(newEnd)}`;
+
+            } else if (barDrag.mode === 'right') {
+                const rawW = barDrag.origWidth + dx;
+                const snappedW = Math.max(CELL_W, Math.round(rawW / CELL_W) * CELL_W);
+                barDrag.bar.style.width = snappedW + 'px';
+
+                const barStart = pxToDate(barDrag.origLeft);
+                const newEnd = pxToDateEnd(barDrag.origLeft + snappedW);
+                tooltip.textContent = `${fmtDate(barStart)} → ${fmtDate(newEnd)}`;
+
+            } else if (barDrag.mode === 'left') {
+                const rawLeft = barDrag.origLeft + dx;
+                const maxLeft = barDrag.origLeft + barDrag.origWidth - CELL_W;
+                const snapped = Math.min(maxLeft, Math.round(rawLeft / CELL_W) * CELL_W);
+                const newWidth = barDrag.origLeft + barDrag.origWidth - snapped;
+
+                barDrag.bar.style.left = snapped + 'px';
+                barDrag.bar.style.width = newWidth + 'px';
+
+                const newStart = pxToDate(snapped);
+                const barEnd = pxToDateEnd(barDrag.origLeft + barDrag.origWidth);
+                tooltip.textContent = `${fmtDate(newStart)} → ${fmtDate(barEnd)}`;
+            }
+
+            tooltip.style.cssText = `left:${e.clientX + 14}px;top:${e.clientY - 32}px;display:block;`;
+        }
+
+        async function onBarUp(e) {
+            if (!barDrag) return;
+            const { bar, mode, origLeft, origWidth } = barDrag;
+            barDrag = null;
+
+            bar.classList.remove('tl-bar-dragging');
+            bar.style.transition = '';
+            tooltip.style.display = 'none';
+            document.removeEventListener('mousemove', onBarMove);
+            document.removeEventListener('mouseup', onBarUp);
+
+            const newLeft = parseFloat(bar.style.left);
+            const newWidth = parseFloat(bar.style.width);
+
+            if (Math.abs(newLeft - origLeft) < 2 && Math.abs(newWidth - origWidth) < 2) return;
+
+            const startDate = pxToDate(newLeft);
+            const endDate = pxToDateEnd(newLeft + newWidth);
+
+            const id = bar.dataset.id;
+            const type = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${id}"]`)?.dataset.rowType ?? 'subtask';
+
+            if (!confirm(`Update dates?\n${fmtDate(startDate)} → ${fmtDate(endDate)}`)) {
+                bar.style.left = origLeft + 'px';
+                bar.style.width = origWidth + 'px';
+                return;
+            }
+
+            await Promise.all([
+                postDate(id, type, startDate.toISOString(), true),
+                postDate(id, type, endDate.toISOString(), false)
+            ]);
+            location.reload();
+        }
+
+        // ─── API ─────────────────────────────────────────────────────────────
+        async function postDate(id, type, iso, isStart) {
+            // Parse the ISO string to a Date object
+            const date = new Date(iso);
+
+            // Format as local date string to preserve the exact hour
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            // Create a local date string that will be parsed correctly
+            const localDateStr = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+            console.log('Saving:', {
+                id,
+                type,
+                originalIso: iso,
+                localDateStr: localDateStr,
+                isStart
+            });
+
+            return fetch('/Tasks/SetItemDate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': CSRF },
+                body: JSON.stringify({
+                    id: parseInt(id),
+                    type,
+                    date: localDateStr,
+                    isStart
+                })
+            });
+        }
+
+        // ─── Edit Modal ───────────────────────────────────────────────────────
         let _modal = null;
         function openEditModal(id, title, start, end, color, done) {
             document.getElementById('meId').value = id;
@@ -834,6 +1234,7 @@
             const id = parseInt(document.getElementById('meId').value);
             const title = document.getElementById('meTitle').value.trim();
             if (!title) { alert('Title is required'); return; }
+
             await fetch('/Tasks/UpdateSubtaskDetails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': CSRF },
@@ -856,7 +1257,36 @@
             await postDate(id, 'subtask', null, false);
             _modal?.hide(); location.reload();
         }
+        // Debug function to check cell alignment
+        function debugCellAlignment() {
+            const firstRow = rowsArea?.querySelector('.tl-grid-row');
+            if (!firstRow) return;
 
-        document.addEventListener('DOMContentLoaded', () => { positionBars(); scrollToToday(); });
+            const cells = firstRow.querySelectorAll('.tl-grid-cell');
+            console.log('Total cells:', cells.length);
+
+            // Log positions of first few cells
+            for (let i = 0; i < Math.min(5, cells.length); i++) {
+                const rect = cells[i].getBoundingClientRect();
+                console.log(`Cell ${i}: left=${rect.left}, right=${rect.right}, width=${rect.width}`);
+            }
+        }
+
+        // Call it after initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            positionBars();
+            setTimeout(() => {
+                scrollToToday();
+                debugCellAlignment();
+            }, 100);
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            positionBars();
+            setTimeout(() => scrollToToday(), 100);
+        });
+
+        window.addEventListener('resize', positionBars);
     </script>
 }
