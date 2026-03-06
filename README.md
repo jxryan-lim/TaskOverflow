@@ -16,7 +16,7 @@ A task management web application built with **ASP.NET Core MVC (.NET 8)**. Orga
 | Search by description | ✅ |
 | Filter by status (All / Completed / Incomplete) | ✅ |
 | Sort by due date (ascending / descending) | ✅ |
-| Local persistence (SQL Server via EF Core) | ✅ |
+| Local persistence (SQLite via EF Core) | ✅ |
 | Bulk import from Excel (.xlsx) | ✅ |
 | Export to Excel (.xlsx) | ✅ |
 | **Bonus:** Calendar view (FullCalendar) | ✅ |
@@ -30,7 +30,7 @@ Tasks with no due date are sorted to the **end** when sorting ascending, and to 
 ## Tech Stack
 
 - **ASP.NET Core MVC** — web framework
-- **Entity Framework Core + SQL Server** — local persistence
+- **Entity Framework Core + SQLite** — local persistence (zero config, file-based)
 - **ASP.NET Core Identity** — user authentication
 - **EPPlus** — Excel import/export
 - **FullCalendar 6** — calendar view on the dashboard
@@ -44,8 +44,9 @@ Tasks with no due date are sorted to the **end** when sorting ascending, and to 
 | Tool | Version | Download |
 |---|---|---|
 | .NET 8 SDK | 8.0 or later | https://dotnet.microsoft.com/download |
-| SQL Server | Any edition (Express is fine) | https://www.microsoft.com/en-us/sql-server/sql-server-downloads |
 | Git | Any recent version | https://git-scm.com |
+
+> No database server required — the app uses **SQLite**, which stores data in a local file (`TaskOverflow.db`) created automatically on first run.
 
 ---
 
@@ -55,43 +56,40 @@ Tasks with no due date are sorted to the **end** when sorting ascending, and to 
 
 1. Clone or download the repository
 2. Open `TaskOverflow.sln` in **Visual Studio 2022**
-3. Open `appsettings.json` and update the connection string:
-
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=TaskOverflow;Trusted_Connection=True;TrustServerCertificate=True;"
-}
-```
-
-> If using SQL Server Express, change `Server=localhost` to `Server=localhost\SQLEXPRESS`
-
-4. Open the **Package Manager Console** (Tools → NuGet Package Manager → Package Manager Console) and run:
+3. Open the **Package Manager Console** (Tools → NuGet Package Manager → Package Manager Console) and run:
 
 ```
 Update-Database
 ```
 
-5. Press **F5** (or click the green ▶ Run button) — the browser will open automatically
+4. Press **F5** (or click the green ▶ Run button) — the browser will open automatically
 
 ---
 
 ### Option B — Command Line
 
+> **Note:** You'll need the EF Core CLI tools installed once on your machine. If you've never used them before, run this first:
+> ```bash
+> dotnet tool install --global dotnet-ef
+> ```
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/your-username/TaskOverflow.git
-cd TaskOverflow
 
-# 2. Update the connection string in appsettings.json (see above)
+# 2. Navigate into the project folder (note: two levels deep)
+cd TaskOverflow\TaskOverflow
 
-# 3. Apply migrations
+# 3. Apply migrations (creates TaskOverflow.db automatically)
 dotnet ef database update
 
 # 4. Run
 dotnet run
 ```
 
-Then open `https://localhost:5001` in your browser.
+The browser will open automatically. If it doesn't, navigate to `https://localhost:7135` manually.
+
+> The repo has a solution folder (`TaskOverflow/`) wrapping the project folder (`TaskOverflow/TaskOverflow/`). Make sure you `cd` into the inner folder before running any `dotnet` commands.
 
 ---
 
@@ -127,22 +125,43 @@ Invalid rows are skipped and a summary is shown after import.
 ```
 TaskOverflow/
 ├── Controllers/
-│   ├── AccountController.cs    # Login, register, profile, password
-│   └── TasksController.cs      # Task CRUD, import/export, dashboard
+│   ├── AccountController.cs          # Login, register, profile, settings
+│   ├── HomeController.cs             # Home/landing page
+│   └── TasksController.cs            # Task CRUD, import/export, dashboard
+├── Data/
+│   └── ApplicationDbContext.cs       # EF Core database context
+├── Migrations/                       # EF Core migration history
+├── Models/
+│   ├── AccountViewModels.cs          # Login, register, profile view models
+│   ├── ErrorViewModel.cs
+│   └── ViewModels.cs                 # Task-related view models
 ├── Views/
-│   ├── Tasks/
-│   │   ├── Index.cshtml         # Task list (search, filter, sort, pagination)
-│   │   ├── Create.cshtml        # New task form
-│   │   ├── Edit.cshtml          # Edit task form
-│   │   ├── Details.cshtml       # Task detail view
-│   │   ├── Dashboard.cshtml     # Dashboard + FullCalendar
-│   │   ├── TimelineView.cshtml  # Gantt/timeline view
-│   │   └── _TimelineRowInteractive.cshtml
-│   └── Account/
-│       ├── Register.cshtml
-│       └── Profile.cshtml
-├── Models/                      # Data models and ViewModels
-├── Data/                        # ApplicationDbContext (EF Core)
+│   ├── Account/
+│   │   ├── Login.cshtml
+│   │   ├── Profile.cshtml
+│   │   ├── Register.cshtml
+│   │   └── Settings.cshtml           # Change password
+│   ├── Home/
+│   │   ├── Index.cshtml
+│   │   └── Privacy.cshtml
+│   ├── Shared/
+│   │   ├── _Layout.cshtml
+│   │   └── Error.cshtml
+│   └── Tasks/
+│       ├── _TimelineRowInteractive.cshtml
+│       ├── Create.cshtml
+│       ├── Dashboard.cshtml          # Dashboard + FullCalendar
+│       ├── Details.cshtml
+│       ├── Edit.cshtml
+│       ├── Index.cshtml              # Task list (search, filter, sort, pagination)
+│       └── TimelineView.cshtml       # Gantt/timeline view
+├── wwwroot/
+│   ├── css/
+│   │   ├── animations.css
+│   │   ├── dark-mode.css
+│   │   └── site.css
+│   ├── js/
+│   └── lib/
 └── appsettings.json
 ```
 
@@ -155,10 +174,8 @@ TaskOverflow/
 dotnet tool install --global dotnet-ef
 ```
 
-**Database connection error**
-- Make sure SQL Server is running (check Services or SQL Server Configuration Manager)
-- Double-check the connection string in `appsettings.json`
-- Re-run `Update-Database` in Package Manager Console
+**Database error on first run**
+Make sure you've run `Update-Database` before starting the app. The `TaskOverflow.db` file will be created automatically in the project root.
 
 **Port already in use**
 Change the port in `Properties/launchSettings.json`, or run:
