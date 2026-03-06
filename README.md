@@ -1,530 +1,167 @@
-\# TaskOverflow - Comprehensive To-Do List Application
+# TaskOverflow
 
+A task management web application built with **ASP.NET Core MVC (.NET 8)**. Organise, track, and visualise your tasks with a dashboard, calendar view, timeline, and Excel import/export support.
 
-
-\## 📋 Overview
-
-
-
-TaskOverflow is a feature-rich to-do list web application built with C# and ASP.NET Core MVC. It allows users to efficiently manage tasks with CRUD operations, filtering, sorting, pagination, and import/export capabilities.
-
-
-
-\## ✨ Features
-
-
-
-\### Core Functionality
-
-\- \*\*User Authentication\*\* - Register, login, and password reset functionality
-
-\- \*\*Task Management\*\* - Create, read, update, and delete tasks
-
-\- \*\*Task Properties\*\* - Description (required), Due Date (optional), Category (Work/Personal/Urgent)
-
-\- \*\*Status Tracking\*\* - Mark tasks as complete/incomplete
-
-
-
-\### Advanced Features
-
-\- \*\*Pagination\*\* - Choose page sizes: 5, 10, 15, or 20 items per page
-
-\- \*\*Search\*\* - Filter tasks by keyword in description
-
-\- \*\*Filter\*\* - View All, Completed, or Incomplete tasks
-
-\- \*\*Sort\*\* - Order by due date (ascending/descending)
-
-&nbsp; - \*Note: Tasks without due dates appear at the end when sorting ascending, beginning when sorting descending\*
-
-\- \*\*Bulk Import\*\* - Import tasks from Excel/CSV files with error handling
-
-\- \*\*Export\*\* - Download tasks as formatted Excel reports
-
-
-
-\### Bonus Features (Implemented)
-
-\- \*\*Drag-and-Drop Reordering\*\* - Reorder tasks with persistent SortOrder
-
-\- \*\*Calendar View\*\* - (Optional) View tasks by due date with color-coded categories
-
-
-
-\## 🛠️ Tech Stack
-
-
-
-\- \*\*Framework\*\*: .NET 8 (ASP.NET Core MVC)
-
-\- \*\*Database\*\*: SQLite with Entity Framework Core
-
-\- \*\*Authentication\*\*: ASP.NET Core Identity
-
-\- \*\*Frontend\*\*: Bootstrap 5, Bootstrap Icons
-
-\- \*\*Data Processing\*\*: EPPlus for Excel import/export
-
-
-
-\## 📁 Project Structure
-
-
-
-```
-
-TaskOverflow/
-
-├── Controllers/
-
-│   ├── AccountController.cs      # Authentication (login/register)
-
-│   ├── HomeController.cs          # Home page
-
-│   └── TasksController.cs         # Task CRUD and operations
-
-├── Data/
-
-│   └── ApplicationDbContext.cs    # Database context
-
-├── Models/
-
-│   ├── AccountViewModels.cs       # Login/register view models
-
-│   ├── ErrorViewModel.cs          # Error handling
-
-│   └── ViewModels.cs              # Task models and view models
-
-├── Views/
-
-│   ├── Account/                    # Login/register pages
-
-│   ├── Home/                       # Home page
-
-│   ├── Shared/                      # Layout and partials
-
-│   └── Tasks/                       # Task management views
-
-├── wwwroot/
-
-│   └── templates/                   # Sample import templates
-
-├── Migrations/                       # EF Core migrations
-
-├── appsettings.json                   # Configuration
-
-└── Program.cs                          # Application setup
-
-```
-
-
-
-\## 🚀 Getting Started
-
-
-
-\### Prerequisites
-
-\- \[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-
-\- \[Visual Studio 2022](https://visualstudio.microsoft.com/) (or any C# editor)
-
-\- \[DB Browser for SQLite](https://sqlitebrowser.org/) (optional, for database viewing)
-
-
-
-\### Installation
-
-
-
-1\. \*\*Clone the repository\*\*
-
-```bash
-
-git clone https://github.com/yourusername/TaskOverflow.git
-
-cd TaskOverflow
-
-```
-
-
-
-2\. \*\*Update database connection\*\* (optional)
-
-The default connection string in `appsettings.json` uses a local SQLite database:
-
-```json
-
-{
-
-&nbsp; "ConnectionStrings": {
-
-&nbsp;   "DefaultConnection": "Data Source=TaskOverflow.db"
-
-&nbsp; }
-
-}
-
-```
-
-
-
-3\. \*\*Apply database migrations\*\*
-
-```bash
-
-dotnet ef database update
-
-```
-
-Or in Package Manager Console:
-
-```powershell
-
-Update-Database
-
-```
-
-
-
-4\. \*\*Run the application\*\*
-
-```bash
-
-dotnet run
-
-```
-
-Or press F5 in Visual Studio
-
-
-
-5\. \*\*Navigate to\*\* `https://localhost:5001` (or the URL shown in console)
-
-
-
-\## 📖 Usage Guide
-
-
-
-\### First-Time Setup
-
-1\. Click \*\*Register\*\* and create an account
-
-2\. You'll be automatically logged in
-
-3\. Navigate to \*\*My Tasks\*\* to start managing your tasks
-
-
-
-\### Managing Tasks
-
-\- \*\*Create Task\*\*: Click "Add Task" and fill in the details
-
-\- \*\*Edit Task\*\*: Click the pencil icon on any task
-
-\- \*\*Delete Task\*\*: Click the trash icon and confirm
-
-\- \*\*Complete Task\*\*: Toggle the switch to mark complete/incomplete
-
-
-
-\### Filtering \& Searching
-
-\- \*\*Search\*\*: Type keywords in the search box
-
-\- \*\*Filter\*\*: Select All/Completed/Incomplete from dropdown
-
-\- \*\*Sort\*\*: Choose ascending/descending by due date
-
-\- \*\*Page Size\*\*: Select 5, 10, 15, or 20 items per page
-
-
-
-\### Import/Export
-
-\- \*\*Export\*\*: Click the download button → "Export to Excel"
-
-\- \*\*Import\*\*: Click the download button → "Import from Excel"
-
-&nbsp; - Use the provided template in `wwwroot/templates/`
-
-&nbsp; - Columns: Description, Due Date (YYYY-MM-DD), Category (Work/Personal/Urgent), Status (Completed/Incomplete)
-
-
-
-\## 🗄️ Database Design
-
-
-
-\### Key Tables
-
-\- \*\*AspNetUsers\*\* - User accounts (extended with FirstName/LastName)
-
-\- \*\*AspNetRoles\*\* - Role definitions (Admin, Manager, User)
-
-\- \*\*AspNetUserRoles\*\* - User-role assignments
-
-\- \*\*Tasks\*\* - Task items with foreign key to Users
-
-\- \*\*AspNetUserTokens\*\* - Password reset tokens (kept for security features)
-
-
-
-\### Data Persistence Decision
-
-\- \*\*Local Storage\*\*: SQLite with Entity Framework Core
-
-\- Tasks persist across application restarts and page reloads
-
-\- User data is isolated per authenticated user
-
-
-
-\## 🔒 Authentication \& Authorization
-
-
-
-\- \*\*Identity Framework\*\* handles all authentication
-
-\- \*\*Password Requirements\*\*: Min 6 characters, 1 uppercase, 1 digit
-
-\- \*\*Roles Implemented\*\*: Admin, Manager, User (for view differentiation)
-
-\- \*\*Password Reset\*\*: Fully functional using AspNetUserTokens table
-
-
-
-\## 📊 Import/Export Specifications
-
-
-
-\### Import Template
-
-```
-
-Description,Due Date,Category,Status
-
-"Complete project documentation",2024-12-31,Work,Incomplete
-
-"Buy groceries",2024-03-15,Personal,Incomplete
-
-"Submit urgent report",2024-03-10,Urgent,Completed
-
-```
-
-
-
-\### Error Handling
-
-\- Invalid rows are skipped with detailed error messages
-
-\- Import summary shows success/failure counts
-
-\- Graceful handling of malformed dates or missing data
-
-
-
-\### Export Format
-
-Excel (.xlsx) with columns:
-
-\- Description
-
-\- Due Date
-
-\- Category
-
-\- Status
-
-\- Created At (additional metadata)
-
-
-
-\## 🎨 UI Framework
-
-
-
-\- \*\*Bootstrap 5\*\* for responsive design
-
-\- \*\*Bootstrap Icons\*\* for visual elements
-
-\- \*\*Custom CSS\*\* for additional styling
-
-\- \*\*Toast notifications\*\* for user feedback
-
-
-
-\## 🧪 Testing the Application
-
-
-
-\### Test Credentials
-
-After seeding (optional), you can use:
-
-\- \*\*Admin\*\*: admin@example.com / Admin@123456
-
-\- \*\*Manager\*\*: manager@example.com / Manager@123456
-
-\- \*\*User\*\*: user@example.com / User@123456
-
-
-
-\### Sample Tasks to Create
-
-1\. "Complete project documentation" - Work - Due next week
-
-2\. "Team meeting" - Work - Due tomorrow
-
-3\. "Grocery shopping" - Personal - Due this weekend
-
-4\. "Submit report" - Urgent - Due today
-
-
-
-\## 🔧 Configuration
-
-
-
-\### appsettings.json
-
-```json
-
-{
-
-&nbsp; "Logging": {
-
-&nbsp;   "LogLevel": {
-
-&nbsp;     "Default": "Information",
-
-&nbsp;     "Microsoft.AspNetCore": "Warning"
-
-&nbsp;   }
-
-&nbsp; },
-
-&nbsp; "AllowedHosts": "\*",
-
-&nbsp; "ConnectionStrings": {
-
-&nbsp;   "DefaultConnection": "Data Source=TaskOverflow.db"
-
-&nbsp; }
-
-}
-
-```
-
-
-
-\## 📦 Dependencies
-
-
-
-\- Microsoft.AspNetCore.Identity.EntityFrameworkCore (8.0.0)
-
-\- Microsoft.EntityFrameworkCore.Sqlite (8.0.0)
-
-\- Microsoft.EntityFrameworkCore.Tools (8.0.8)
-
-\- EPPlus (8.4.2) - Excel import/export
-
-\- Bootstrap 5 (via CDN)
-
-\- Bootstrap Icons (via CDN)
-
-
-
-\## 🚧 Future Enhancements
-
-
-
-\- \[ ] Calendar view for task visualization
-
-\- \[ ] Email notifications for upcoming tasks
-
-\- \[ ] Task sharing/collaboration
-
-\- \[ ] Subtasks and checklists
-
-\- \[ ] Task attachments
-
-\- \[ ] Dark mode theme
-
-\- \[ ] Mobile-responsive optimizations
-
-
-
-\## 🤝 Contributing
-
-
-
-1\. Fork the repository
-
-2\. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-
-3\. Commit changes (`git commit -m 'Add AmazingFeature'`)
-
-4\. Push to branch (`git push origin feature/AmazingFeature`)
-
-5\. Open a Pull Request
-
-
-
-\## 📝 License
-
-
-
-This project is for educational purposes as part of a technical assignment.
-
-
-
-\## 👨‍💻 Author
-
-
-
-Your Name
-
-\- GitHub: \[@jxryan-lim](https://github.com/jxryan-lim)
-
-
-
-\## 🙏 Acknowledgments
-
-
-
-\- Assignment requirements for guiding feature development
-
-\- ASP.NET Core documentation and community
-
-\- Bootstrap for the UI components
-
-\- EPPlus team for Excel processing capabilities
-
-
-
-\## 📞 Support
-
-
-
-For issues or questions:
-
-1\. Check the existing documentation
-
-2\. Review error messages in the application
-
-3\. Open an issue on GitHub
-
-4\. Contact the development team
-
-
+> Built as a submission for the C# / .NET Technical Assignment.
 
 ---
 
+## Features
 
+| Requirement | Status |
+|---|---|
+| Task CRUD (create, edit, delete, complete) | ✅ |
+| Categories — Work, Personal, Urgent | ✅ |
+| Pagination (5 / 10 / 15 / 20 per page) | ✅ |
+| Search by description | ✅ |
+| Filter by status (All / Completed / Incomplete) | ✅ |
+| Sort by due date (ascending / descending) | ✅ |
+| Local persistence (SQL Server via EF Core) | ✅ |
+| Bulk import from Excel (.xlsx) | ✅ |
+| Export to Excel (.xlsx) | ✅ |
+| **Bonus:** Calendar view (FullCalendar) | ✅ |
+| **Bonus:** Drag-and-drop reordering (persisted via SortOrder field) | ✅ |
 
-\*\*Built with ❤️ using C# and .NET 8\*\*
+### Sorting — tasks with no due date
+Tasks with no due date are sorted to the **end** when sorting ascending, and to the **beginning** when sorting descending, so dated tasks always appear first in the most common use case.
 
+---
+
+## Tech Stack
+
+- **ASP.NET Core MVC** — web framework
+- **Entity Framework Core + SQL Server** — local persistence
+- **ASP.NET Core Identity** — user authentication
+- **EPPlus** — Excel import/export
+- **FullCalendar 6** — calendar view on the dashboard
+- **Bootstrap 5** — UI framework
+- **SortableJS** — drag-and-drop reordering
+
+---
+
+## Prerequisites
+
+| Tool | Version | Download |
+|---|---|---|
+| .NET 8 SDK | 8.0 or later | https://dotnet.microsoft.com/download |
+| SQL Server | Any edition (Express is fine) | https://www.microsoft.com/en-us/sql-server/sql-server-downloads |
+| Git | Any recent version | https://git-scm.com |
+
+---
+
+## Running the App
+
+### Option A — Visual Studio (recommended)
+
+1. Clone or download the repository
+2. Open `TaskOverflow.sln` in **Visual Studio 2022**
+3. Open `appsettings.json` and update the connection string:
+
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Server=localhost;Database=TaskOverflow;Trusted_Connection=True;TrustServerCertificate=True;"
+}
+```
+
+> If using SQL Server Express, change `Server=localhost` to `Server=localhost\SQLEXPRESS`
+
+4. Open the **Package Manager Console** (Tools → NuGet Package Manager → Package Manager Console) and run:
+
+```
+Update-Database
+```
+
+5. Press **F5** (or click the green ▶ Run button) — the browser will open automatically
+
+---
+
+### Option B — Command Line
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/your-username/TaskOverflow.git
+cd TaskOverflow
+
+# 2. Update the connection string in appsettings.json (see above)
+
+# 3. Apply migrations
+dotnet ef database update
+
+# 4. Run
+dotnet run
+```
+
+Then open `https://localhost:5001` in your browser.
+
+---
+
+## First Time Use
+
+1. Click **Register** to create an account
+2. Log in — you'll land on your task list
+3. Use **+ New Task** to add your first task
+4. Visit the **Dashboard** to see your calendar and completion stats
+5. Use **Import** to bulk-add tasks from Excel (download the template first)
+
+---
+
+## Excel Import Format
+
+Download the import template from within the app (**Tasks → Import → Download Template**).
+
+| Column | Required | Notes |
+|---|---|---|
+| Description | ✅ Yes | Task title / description |
+| Category | ✅ Yes | `Work`, `Personal`, or `Urgent` |
+| Due Date | No | Format: `YYYY-MM-DD` |
+| Start Date | No | Format: `YYYY-MM-DD` |
+| End Date | No | Format: `YYYY-MM-DD` |
+| Status | No | `Completed` or leave blank |
+
+Invalid rows are skipped and a summary is shown after import.
+
+---
+
+## Project Structure
+
+```
+TaskOverflow/
+├── Controllers/
+│   ├── AccountController.cs    # Login, register, profile, password
+│   └── TasksController.cs      # Task CRUD, import/export, dashboard
+├── Views/
+│   ├── Tasks/
+│   │   ├── Index.cshtml         # Task list (search, filter, sort, pagination)
+│   │   ├── Create.cshtml        # New task form
+│   │   ├── Edit.cshtml          # Edit task form
+│   │   ├── Details.cshtml       # Task detail view
+│   │   ├── Dashboard.cshtml     # Dashboard + FullCalendar
+│   │   ├── TimelineView.cshtml  # Gantt/timeline view
+│   │   └── _TimelineRowInteractive.cshtml
+│   └── Account/
+│       ├── Register.cshtml
+│       └── Profile.cshtml
+├── Models/                      # Data models and ViewModels
+├── Data/                        # ApplicationDbContext (EF Core)
+└── appsettings.json
+```
+
+---
+
+## Troubleshooting
+
+**`dotnet ef` command not found**
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+**Database connection error**
+- Make sure SQL Server is running (check Services or SQL Server Configuration Manager)
+- Double-check the connection string in `appsettings.json`
+- Re-run `Update-Database` in Package Manager Console
+
+**Port already in use**
+Change the port in `Properties/launchSettings.json`, or run:
+```bash
+dotnet run --urls "https://localhost:5002"
+```
