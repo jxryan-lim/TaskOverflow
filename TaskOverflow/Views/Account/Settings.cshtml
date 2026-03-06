@@ -1,0 +1,211 @@
+@model TaskOverflow.Models.ChangePasswordViewModel
+@{
+    ViewData["Title"] = "Settings";
+    var success = TempData["SuccessMessage"]?.ToString();
+}
+
+@section Styles {
+<style>
+    .settings-nav .nav-link {
+        border-radius: .6rem;
+        color: #444;
+        font-weight: 500;
+        padding: .55rem .9rem;
+    }
+    .settings-nav .nav-link.active {
+        background: #f0f4ff;
+        color: #1a73e8;
+    }
+    .settings-nav .nav-link i { width: 20px; }
+    .settings-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(0,0,0,.08);
+        box-shadow: 0 2px 16px rgba(0,0,0,.06);
+    }
+    .strength-bar { height: 5px; border-radius: 3px; transition: width .3s, background .3s; }
+
+    [data-theme="dark"] .settings-card { background: #1e2130; border-color: rgba(255,255,255,.08); }
+    [data-theme="dark"] .settings-nav .nav-link { color: #ccc; }
+    [data-theme="dark"] .settings-nav .nav-link.active { background: rgba(26,115,232,.18); color: #7baef8; }
+</style>
+}
+
+<div class="container py-4" style="max-width: 760px;">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a asp-action="Profile" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h4 class="fw-bold mb-0">Settings</h4>
+            <p class="text-muted mb-0 small">Manage your account preferences</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Sidebar nav -->
+        <div class="col-md-3">
+            <div class="settings-nav d-flex flex-column gap-1">
+                <a href="#password" class="nav-link active d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock"></i> Password
+                </a>
+                <a asp-action="Profile" class="nav-link d-flex align-items-center gap-2">
+                    <i class="bi bi-person"></i> Profile Info
+                </a>
+            </div>
+        </div>
+
+        <!-- Main panel -->
+        <div class="col-md-9">
+            @if (!string.IsNullOrEmpty(success))
+            {
+                <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                    <i class="bi bi-check-circle-fill"></i> @success
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <div class="card settings-card p-4" id="password">
+                <h5 class="fw-semibold mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-primary"></i> Change Password
+                </h5>
+                <p class="text-muted small mb-4">Choose a strong password you don't use elsewhere.</p>
+
+                <form asp-action="Settings" method="post" id="passwordForm">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="All" class="alert alert-danger py-2 small mb-3"></div>
+
+                    <!-- Current password -->
+                    <div class="mb-3">
+                        <label asp-for="CurrentPassword" class="form-label fw-medium"></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input asp-for="CurrentPassword" class="form-control" id="currentPwd" placeholder="Enter current password">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('currentPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="CurrentPassword" class="text-danger small"></span>
+                    </div>
+
+                    <!-- New password -->
+                    <div class="mb-1">
+                        <label asp-for="NewPassword" class="form-label fw-medium"></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input asp-for="NewPassword" class="form-control" id="newPwd" placeholder="Min 6 characters" oninput="checkStrength(this.value)">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('newPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="NewPassword" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Strength bar -->
+                    <div class="mb-3">
+                        <div class="d-flex gap-1 mt-2 mb-1">
+                            <div class="strength-bar flex-fill bg-secondary" id="bar1" style="width:100%"></div>
+                            <div class="strength-bar flex-fill bg-secondary" id="bar2" style="width:100%; opacity:.3"></div>
+                            <div class="strength-bar flex-fill bg-secondary" id="bar3" style="width:100%; opacity:.3"></div>
+                            <div class="strength-bar flex-fill bg-secondary" id="bar4" style="width:100%; opacity:.3"></div>
+                        </div>
+                        <div class="small text-muted" id="strengthLabel">Enter a new password</div>
+                    </div>
+
+                    <!-- Confirm password -->
+                    <div class="mb-4">
+                        <label asp-for="ConfirmPassword" class="form-label fw-medium"></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input asp-for="ConfirmPassword" class="form-control" id="confirmPwd" placeholder="Repeat new password" oninput="checkMatch()">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('confirmPwd', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        <div class="small mt-1" id="matchLabel"></div>
+                    </div>
+
+                    <!-- Requirements -->
+                    <div class="alert alert-light border py-2 px-3 mb-4 small">
+                        <div class="fw-medium mb-1 text-muted">Password requirements:</div>
+                        <div class="d-flex flex-wrap gap-x-3 gap-2">
+                            <span id="req-len"  class="req-item text-muted"><i class="bi bi-x-circle me-1"></i>6+ characters</span>
+                            <span id="req-upper" class="req-item text-muted"><i class="bi bi-x-circle me-1"></i>Uppercase letter</span>
+                            <span id="req-num"  class="req-item text-muted"><i class="bi bi-x-circle me-1"></i>Number</span>
+                            <span id="req-sym"  class="req-item text-muted"><i class="bi bi-x-circle me-1"></i>Symbol (optional)</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        function togglePwd(id, btn) {
+            const input = document.getElementById(id);
+            const icon  = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        function checkStrength(val) {
+            const bars   = [bar1, bar2, bar3, bar4];
+            const label  = document.getElementById('strengthLabel');
+            const colors = ['#dc3545','#fd7e14','#ffc107','#198754'];
+            const labels = ['Weak','Fair','Good','Strong'];
+
+            let score = 0;
+            if (val.length >= 6)                    score++;
+            if (/[A-Z]/.test(val))                  score++;
+            if (/[0-9]/.test(val))                  score++;
+            if (/[^A-Za-z0-9]/.test(val))           score++;
+
+            bars.forEach((b, i) => {
+                b.style.opacity = i < score ? '1' : '.25';
+                b.style.background = i < score ? colors[score - 1] : '#6c757d';
+            });
+
+            label.textContent = val.length === 0 ? 'Enter a new password' : labels[score - 1] ?? 'Weak';
+            label.style.color = val.length === 0 ? '' : colors[score - 1];
+
+            // Requirements
+            setReq('req-len',   val.length >= 6);
+            setReq('req-upper', /[A-Z]/.test(val));
+            setReq('req-num',   /[0-9]/.test(val));
+            setReq('req-sym',   /[^A-Za-z0-9]/.test(val));
+        }
+
+        function setReq(id, met) {
+            const el = document.getElementById(id);
+            el.innerHTML = met
+                ? `<i class="bi bi-check-circle-fill me-1 text-success"></i>${el.textContent.trim().replace(/^[✓✗] ?/, '')}`
+                : `<i class="bi bi-x-circle me-1"></i>${el.textContent.trim().replace(/^[✓✗] ?/, '')}`;
+            el.className = 'req-item ' + (met ? 'text-success' : 'text-muted');
+        }
+
+        function checkMatch() {
+            const np = document.getElementById('newPwd').value;
+            const cp = document.getElementById('confirmPwd').value;
+            const el = document.getElementById('matchLabel');
+            if (!cp) { el.textContent = ''; return; }
+            if (np === cp) {
+                el.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><span class="text-success">Passwords match</span>';
+            } else {
+                el.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i><span class="text-danger">Passwords do not match</span>';
+            }
+        }
+    </script>
+}

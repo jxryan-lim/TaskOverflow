@@ -1,0 +1,859 @@
+﻿@* ═══════════════════════════════════════════════════════════════════
+   Dashboard.cshtml  —  Tasks/Dashboard (Enhanced with FullCalendar)
+   Model: DashboardViewModel  (see ViewModels.cs)
+   CDN deps: FullCalendar 6, Bootstrap Icons
+═══════════════════════════════════════════════════════════════════ *@
+@model DashboardViewModel
+@using TaskOverflow.Models
+@{
+    ViewData["Title"] = "Dashboard";
+
+    string CatColor(CategoryType cat) => cat switch
+    {
+        CategoryType.Urgent => "#ef476f",
+        CategoryType.Work => "#4361ee",
+        CategoryType.Personal => "#06d6a0",
+        _ => "#6c757d"
+    };
+
+    string CatBadge(CategoryType cat) => cat switch
+    {
+        CategoryType.Urgent => "bg-danger",
+        CategoryType.Work => "bg-primary",
+        CategoryType.Personal => "bg-info",
+        _ => "bg-secondary"
+    };
+
+    // Safe JSON string helper — no nested string interpolation
+    string JsonStr(string? s) =>
+        (s ?? "")
+        .Replace("\\", "\\\\")
+        .Replace("\"", "\\\"")
+        .Replace("\n", " ")
+        .Replace("\r", "");
+
+    int pct = Model.TotalTasks > 0 ? Model.CompletedTasks * 100 / Model.TotalTasks : 0;
+    double circ = 2 * Math.PI * 30;
+    double dash = circ * (1.0 - pct / 100.0);
+
+    var unscheduled = Model.UnscheduledTasks ?? new List<UnscheduledTask>();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.css" />
+}
+
+<style>
+    /* ── page shell ─────────────────────────────────────────────────────────── */
+    .db-shell {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 20px;
+        padding: 0 4px 40px;
+        align-items: start;
+    }
+
+    @@media (max-width: 1100px) {
+        .db-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ── stat strip ─────────────────────────────────────────────────────────── */
+    .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    @@media (max-width: 800px) {
+        .stat-strip {
+            grid-template-columns: repeat(2,1fr);
+        }
+    }
+
+    @@media (max-width: 460px) {
+        .stat-strip {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .stat-tile {
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: var(--bg-card);
+        box-shadow: 0 2px 8px var(--shadow-color);
+        transition: transform .18s, box-shadow .18s;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .stat-tile::before {
+            content: '';
+            position: absolute;
+            top: -24px;
+            right: -24px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: .08;
+        }
+
+        .stat-tile:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+        }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .stat-val {
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -.03em;
+    }
+
+    .stat-lbl {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: var(--text-secondary);
+        margin-top: 2px;
+    }
+
+    .stat-sub {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+    }
+
+    /* ── section heading ────────────────────────────────────────────────────── */
+    .sec-head {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .sec-head::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+    /* ── calendar card ──────────────────────────────────────────────────────── */
+    .cal-card {
+        border-radius: var(--radius-lg);
+        background: var(--bg-card);
+        box-shadow: 0 2px 8px var(--shadow-color);
+        padding: 20px;
+        overflow: hidden;
+    }
+
+    .cal-hint {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-style: italic;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    /* ── FullCalendar overrides ─────────────────────────────────────────────── */
+    .fc {
+        font-family: inherit;
+    }
+
+        .fc .fc-toolbar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .fc .fc-button {
+            background: transparent !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-primary) !important;
+            border-radius: var(--radius-md) !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            padding: 4px 10px !important;
+            box-shadow: none !important;
+        }
+
+            .fc .fc-button:hover,
+            .fc .fc-button-primary:not(:disabled):active,
+            .fc .fc-button-primary:not(:disabled).fc-button-active {
+                background: var(--accent-primary) !important;
+                border-color: var(--accent-primary) !important;
+                color: #fff !important;
+            }
+
+        .fc .fc-daygrid-day-number,
+        .fc .fc-col-header-cell-cushion {
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .fc .fc-day-today {
+            background: rgba(67,97,238,.08) !important;
+        }
+
+    .fc-event {
+        border-radius: 5px !important;
+        border: none !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        cursor: grab !important;
+        padding: 2px 6px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+
+        .fc-event:active {
+            cursor: grabbing !important;
+        }
+
+    .fc .fc-highlight {
+        background: rgba(67,97,238,.15) !important;
+    }
+
+    .fc th, .fc td {
+        border-color: var(--border-color) !important;
+    }
+
+    .fc .fc-scrollgrid {
+        border-color: var(--border-color) !important;
+    }
+
+    .fc .fc-timegrid-slot {
+        height: 40px;
+    }
+
+    .fc .fc-timegrid-now-indicator-line {
+        border-color: var(--accent-danger);
+    }
+
+    .fc .fc-timegrid-now-indicator-arrow {
+        border-top-color: var(--accent-danger);
+        border-bottom-color: var(--accent-danger);
+    }
+
+    [data-theme="dark"] .fc .fc-daygrid-day-number,
+    [data-theme="dark"] .fc .fc-col-header-cell-cushion {
+        color: var(--text-primary);
+    }
+
+    /* ── right column ───────────────────────────────────────────────────────── */
+    .db-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* ── ring overview card ─────────────────────────────────────────────────── */
+    .ring-card {
+        border-radius: var(--radius-lg);
+        background: var(--bg-card);
+        box-shadow: 0 2px 8px var(--shadow-color);
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+
+    .ring-wrap {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+        .ring-wrap svg {
+            transform: rotate(-90deg);
+            display: block;
+        }
+
+    .ring-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ring-pct {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .ring-done {
+        font-size: 9px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .ring-details {
+        flex: 1;
+    }
+
+    .ring-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 12px;
+    }
+
+        .ring-row:last-child {
+            border-bottom: none;
+        }
+
+    .ring-row-lbl {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .ring-row-val {
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* ── unscheduled panel ──────────────────────────────────────────────────── */
+    .unsched-card {
+        border-radius: var(--radius-lg);
+        background: var(--bg-card);
+        box-shadow: 0 2px 8px var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .unsched-header {
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .unsched-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .unsched-badge {
+        background: var(--accent-primary);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 100px;
+    }
+
+    .unsched-hint {
+        font-size: 10px;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .unsched-list {
+        overflow-y: auto;
+        max-height: 380px;
+        padding: 8px 10px;
+    }
+
+    /* ── draggable chip ─────────────────────────────────────────────────────── */
+    .task-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        margin-bottom: 6px;
+        cursor: grab;
+        user-select: none;
+        transition: transform .12s, box-shadow .12s, border-color .12s;
+    }
+
+        .task-chip:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transform: translateX(3px);
+        }
+
+        .task-chip:active {
+            cursor: grabbing;
+        }
+
+    .chip-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .chip-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chip-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chip-meta {
+        font-size: 10px;
+        color: var(--text-secondary);
+        margin-top: 1px;
+    }
+
+    .chip-grip {
+        font-size: 14px;
+        color: var(--text-secondary);
+        opacity: .4;
+        flex-shrink: 0;
+    }
+
+    .chip-cat {
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 100px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        flex-shrink: 0;
+        color: #fff;
+    }
+
+    /* ── empty state ────────────────────────────────────────────────────────── */
+    .empty-state {
+        text-align: center;
+        padding: 28px 16px;
+        color: var(--text-secondary);
+    }
+
+        .empty-state i {
+            font-size: 32px;
+            opacity: .25;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .empty-state p {
+            font-size: 12px;
+            margin: 0;
+        }
+
+    /* ── toast ──────────────────────────────────────────────────────────────── */
+    #db-toast {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        background: var(--bg-card);
+        border-left: 4px solid var(--accent-primary);
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+        padding: 12px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transform: translateY(80px);
+        opacity: 0;
+        transition: transform .28s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+        pointer-events: none;
+        max-width: 320px;
+    }
+
+        #db-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+</style>
+
+@* ════════════════════════════════════════════════ PAGE CONTENT *@
+<div class="container-fluid px-3 px-md-4 mt-3">
+
+    @* ── STAT STRIP ──────────────────────────────────────────────── *@
+    <div class="stat-strip fade-in">
+        <div class="stat-tile" style="color:#4361ee">
+            <div class="stat-icon" style="background:rgba(67,97,238,.12);color:#4361ee">
+                <i class="bi bi-list-task"></i>
+            </div>
+            <div>
+                <div class="stat-val">@Model.TotalTasks</div>
+                <div class="stat-lbl">Total</div>
+                <div class="stat-sub">@Model.PendingTasks pending</div>
+            </div>
+        </div>
+        <div class="stat-tile" style="color:#06d6a0">
+            <div class="stat-icon" style="background:rgba(6,214,160,.12);color:#06d6a0">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+            <div>
+                <div class="stat-val">@Model.CompletedTasks</div>
+                <div class="stat-lbl">Completed</div>
+                <div class="stat-sub">@pct% done</div>
+            </div>
+        </div>
+        <div class="stat-tile" style="color:#ef476f">
+            <div class="stat-icon" style="background:rgba(239,71,111,.12);color:#ef476f">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div>
+                <div class="stat-val">@Model.OverdueTasks</div>
+                <div class="stat-lbl">Overdue</div>
+                <div class="stat-sub">Needs attention</div>
+            </div>
+        </div>
+        <div class="stat-tile" style="color:#f4a61f">
+            <div class="stat-icon" style="background:rgba(255,209,102,.15);color:#f4a61f">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div>
+                <div class="stat-val">@unscheduled.Count</div>
+                <div class="stat-lbl">Unscheduled</div>
+                <div class="stat-sub">No due date</div>
+            </div>
+        </div>
+    </div>
+
+    @* ── MAIN GRID ────────────────────────────────────────────────── *@
+    <div class="db-shell">
+
+        @* LEFT: Calendar *@
+        <div>
+            <div class="sec-head"><i class="bi bi-calendar3"></i> Calendar</div>
+            <div class="cal-card">
+                <div class="cal-hint">
+                    <i class="bi bi-arrows-move"></i>
+                    Drag events to reschedule &mdash; drop unscheduled tasks from the right onto the calendar
+                </div>
+                <div id="fullcalendar"></div>
+            </div>
+        </div>
+
+        @* RIGHT: Overview + Unscheduled *@
+        <div class="db-right-col">
+
+            @* Completion ring *@
+            <div>
+                <div class="sec-head"><i class="bi bi-pie-chart"></i> Overview</div>
+                <div class="ring-card">
+                    <div class="ring-wrap">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="30" fill="none" stroke="var(--border-color)" stroke-width="8" />
+                            <circle cx="40" cy="40" r="30" fill="none"
+                                    stroke="var(--accent-primary)" stroke-width="8"
+                                    stroke-dasharray="@circ.ToString("F1")"
+                                    stroke-dashoffset="@dash.ToString("F1")"
+                                    stroke-linecap="round"
+                                    style="transition:stroke-dashoffset .6s ease" />
+                        </svg>
+                        <div class="ring-center">
+                            <div class="ring-pct">@pct<span style="font-size:11px">%</span></div>
+                            <div class="ring-done">done</div>
+                        </div>
+                    </div>
+                    <div class="ring-details">
+                        <div class="ring-row">
+                            <span class="ring-row-lbl"><i class="bi bi-circle-fill me-1" style="color:#4361ee;font-size:8px"></i>Total</span>
+                            <span class="ring-row-val">@Model.TotalTasks</span>
+                        </div>
+                        <div class="ring-row">
+                            <span class="ring-row-lbl"><i class="bi bi-circle-fill me-1" style="color:#06d6a0;font-size:8px"></i>Done</span>
+                            <span class="ring-row-val">@Model.CompletedTasks</span>
+                        </div>
+                        <div class="ring-row">
+                            <span class="ring-row-lbl"><i class="bi bi-circle-fill me-1" style="color:#ffd166;font-size:8px"></i>Pending</span>
+                            <span class="ring-row-val">@Model.PendingTasks</span>
+                        </div>
+                        <div class="ring-row">
+                            <span class="ring-row-lbl"><i class="bi bi-circle-fill me-1" style="color:#ef476f;font-size:8px"></i>Overdue</span>
+                            <span class="ring-row-val">@Model.OverdueTasks</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* Unscheduled tasks *@
+            <div>
+                <div class="sec-head"><i class="bi bi-inbox"></i> Unscheduled Tasks</div>
+                <div class="unsched-card">
+                    <div class="unsched-header">
+                        <div class="unsched-title">
+                            <i class="bi bi-calendar-x" style="color:var(--accent-warning)"></i>
+                            No due date
+                            <span class="unsched-badge" id="unschedCount">@unscheduled.Count</span>
+                        </div>
+                        <span class="unsched-hint"><i class="bi bi-arrows-move"></i> drag to calendar</span>
+                    </div>
+
+                    <div class="unsched-list" id="unscheduledList">
+                        @if (!unscheduled.Any())
+                        {
+                            <div class="empty-state">
+                                <i class="bi bi-check2-all"></i>
+                                <p>All tasks have due dates!</p>
+                            </div>
+                        }
+                        else
+                        {
+                            foreach (var t in unscheduled)
+                            {
+                                var dotColor = CatColor(t.Category);
+                                var badgeCls = CatBadge(t.Category);
+                                var shortDesc = t.Description != null && t.Description.Length > 42
+                                ? t.Description[..42] + "…"
+                                : t.Description;
+                                <div class="task-chip fc-unscheduled-chip"
+                                     data-task-id="@t.Id"
+                                     data-task-title="@t.Description"
+                                     data-task-color="@dotColor"
+                                     data-task-category="@t.Category">
+                                    <div class="chip-dot" style="background:@dotColor"></div>
+                                    <div class="chip-body">
+                                        <div class="chip-title @(t.IsCompleted ? "text-decoration-line-through opacity-50" : "")">
+                                            @shortDesc
+                                        </div>
+                                        <div class="chip-meta">
+                                            @t.Category@(t.IsCompleted ? " · Completed" : "")
+                                        </div>
+                                    </div>
+                                    <span class="chip-cat @badgeCls">@t.Category.ToString()[..1]</span>
+                                    <i class="bi bi-grip-vertical chip-grip"></i>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <div style="padding:10px 14px;border-top:1px solid var(--border-color);">
+                        <a href="@Url.Action("Create", "Tasks")"
+                           class="btn btn-sm btn-outline-primary w-100"
+                           style="font-size:12px;border-radius:var(--radius-md);">
+                            <i class="bi bi-plus-lg me-1"></i> Add New Task
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@* ── Toast ───────────────────────────────────────────────────────────────── *@
+<div id="db-toast">
+    <i id="toast-icon" class="bi bi-check-circle-fill text-success"></i>
+    <span id="toast-msg">Task updated!</span>
+</div>
+
+@* CSRF token via standard Razor helper (no IAntiforgery injection needed) *@
+@Html.AntiForgeryToken()
+
+@* Calendar events injected as JSON — built with string concat, no nested interpolation *@
+<script id="tasks-data" type="application/json">
+    [@Html.Raw(string.Join(",", Model.UpcomingTasks.Select(t => {
+        var evStart = (t.StartDate ?? t.DueDate).ToString("yyyy-MM-dd");
+        var evEnd   = t.EndDate.HasValue ? t.EndDate.Value.AddDays(1).ToString("yyyy-MM-dd") : "";
+        var endPart = evEnd != "" ? ",\"end\":\"" + evEnd + "\"" : "";
+        return "{\"id\":\"" + t.Id + "\"" +
+               ",\"title\":\"" + JsonStr(t.Description) + "\"" +
+               ",\"start\":\"" + evStart + "\"" +
+               endPart +
+               ",\"color\":\"" + CatColor(t.Category) + "\"" +
+               ",\"extendedProps\":{\"completed\":" + (t.IsCompleted ? "true" : "false") + "}}";
+    })))]
+</script>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.11/index.global.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            /* ── CSRF ──────────────────────────────────────────────────────────────── */
+            function getcsrf() {
+                var el = document.querySelector('input[name="__RequestVerificationToken"]');
+                return el ? el.value : '';
+            }
+
+            /* ── Toast ─────────────────────────────────────────────────────────────── */
+            function showToast(msg, isError) {
+                var el  = document.getElementById('db-toast');
+                var ico = document.getElementById('toast-icon');
+                var txt = document.getElementById('toast-msg');
+                ico.className = isError
+                    ? 'bi bi-x-circle-fill text-danger'
+                    : 'bi bi-check-circle-fill text-success';
+                txt.textContent = msg;
+                el.classList.add('show');
+                clearTimeout(el._t);
+                el._t = setTimeout(function () { el.classList.remove('show'); }, 3200);
+            }
+
+            /* ── Persist date change ───────────────────────────────────────────────── */
+            async function patchDueDate(taskId, newDate, hour, newStart) {
+                var payload = { taskId: parseInt(taskId, 10), newDate: newDate };
+                if (hour !== null && hour !== undefined) { payload.hour = hour; }
+                if (newStart) { payload.newStart = newStart; }
+                try {
+                    var res = await fetch('/Tasks/UpdateDueDate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getcsrf()
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    return res.ok;
+                } catch (e) { return false; }
+            }
+
+            /* ── Load events ───────────────────────────────────────────────────────── */
+            var calEvents = [];
+            try { calEvents = JSON.parse(document.getElementById('tasks-data').textContent); }
+            catch (e) { console.error('Task JSON parse error:', e); }
+
+            /* ── FullCalendar ──────────────────────────────────────────────────────── */
+            var calendar = new FullCalendar.Calendar(document.getElementById('fullcalendar'), {
+                initialView:  'dayGridMonth',
+                headerToolbar: {
+                    left:   'prev,next today',
+                    center: 'title',
+                    right:  'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                buttonText: { today:'Today', month:'Month', week:'Week', day:'Day', list:'List' },
+                nowIndicator: true,
+                editable:     true,
+                droppable:    true,
+                dropAccept:   '.fc-unscheduled-chip',
+                events:       calEvents,
+                height:       'auto',
+                firstDay:     0,
+
+                eventDidMount: function (info) {
+                    info.el.title = info.event.title;
+                    if (info.event.extendedProps.completed) {
+                        info.el.style.opacity = '0.5';
+                    }
+                },
+
+                /* Drag existing event to new date */
+                eventDrop: async function (info) {
+                    var evt      = info.event;
+                    var newStart = evt.startStr.split('T')[0];
+                    var newDate  = evt.end ? new Date(evt.end.getTime() - 86400000).toISOString().split('T')[0] : newStart;
+                    var hour     = evt.start ? evt.start.getHours() : null;
+                    var ok       = await patchDueDate(evt.id, newDate, hour, newStart);
+                    if (ok) {
+                        showToast('"' + evt.title.substring(0, 30) + '" rescheduled', false);
+                    } else {
+                        info.revert();
+                        showToast('Could not save — please try again.', true);
+                    }
+                },
+
+                /* Resize event (changes end date) */
+                eventResize: async function (info) {
+                    var evt      = info.event;
+                    var newStart = evt.startStr.split('T')[0];
+                    var newDate  = evt.end ? new Date(evt.end.getTime() - 86400000).toISOString().split('T')[0] : newStart;
+                    var ok       = await patchDueDate(evt.id, newDate, null, newStart);
+                    if (!ok) {
+                        info.revert();
+                        showToast('Could not save — please try again.', true);
+                    } else {
+                        showToast('Duration updated', false);
+                    }
+                },
+
+                /* Unscheduled chip dropped onto calendar */
+                drop: async function (info) {
+                    var chip    = info.draggedEl;
+                    var taskId  = chip.dataset.taskId;
+                    var title   = chip.dataset.taskTitle || '';
+                    var newDate = info.dateStr.split('T')[0];
+                    var hour    = info.date ? info.date.getHours() : 0;
+
+                    /* Animate chip out */
+                    chip.style.transition = 'opacity .2s, transform .2s';
+                    chip.style.opacity    = '0';
+                    chip.style.transform  = 'translateX(40px)';
+                    setTimeout(function () { chip.remove(); }, 220);
+
+                    /* Decrement badge */
+                    var cntEl = document.getElementById('unschedCount');
+                    if (cntEl) { cntEl.textContent = Math.max(0, parseInt(cntEl.textContent, 10) - 1); }
+
+                    var ok = await patchDueDate(taskId, newDate, hour);
+                    showToast('"' + title.substring(0, 30) + '" scheduled for ' + info.date.toLocaleDateString(), false);
+                }
+            });
+
+            calendar.render();
+
+            /* ── Make chips externally draggable into FullCalendar ────────────────── */
+            var listEl = document.getElementById('unscheduledList');
+            if (listEl && FullCalendar.Draggable) {
+                new FullCalendar.Draggable(listEl, {
+                    itemSelector: '.fc-unscheduled-chip',
+                    eventData: function (el) {
+                        return {
+                            id:       el.dataset.taskId,
+                            title:    el.dataset.taskTitle,
+                            color:    el.dataset.taskColor,
+                            duration: { hours: 1 }
+                        };
+                    }
+                });
+            }
+
+            /* Reflow when dark-mode toggles */
+            new MutationObserver(function () { calendar.updateSize(); })
+                .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+
+        })();
+    </script>
+}

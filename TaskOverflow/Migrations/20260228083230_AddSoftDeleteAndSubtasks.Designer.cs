@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskOverflow.Data;
 
@@ -10,9 +11,11 @@ using TaskOverflow.Data;
 namespace TaskOverflow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228083230_AddSoftDeleteAndSubtasks")]
+    partial class AddSoftDeleteAndSubtasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.8");
@@ -221,9 +224,6 @@ namespace TaskOverflow.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ColorCode")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
@@ -231,15 +231,6 @@ namespace TaskOverflow.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("EstimatedHours")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("HasChildren")
-                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("INTEGER");
@@ -249,16 +240,10 @@ namespace TaskOverflow.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
 
-                    b.Property<int?>("ParentSubTaskId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("SortOrder")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("TaskItemId")
                         .HasColumnType("INTEGER");
@@ -273,10 +258,6 @@ namespace TaskOverflow.Migrations
                     b.HasIndex("IsCompleted");
 
                     b.HasIndex("IsDeleted");
-
-                    b.HasIndex("ParentSubTaskId");
-
-                    b.HasIndex("SortOrder");
 
                     b.HasIndex("TaskItemId");
 
@@ -308,9 +289,6 @@ namespace TaskOverflow.Migrations
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("INTEGER");
 
@@ -323,12 +301,6 @@ namespace TaskOverflow.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -405,18 +377,11 @@ namespace TaskOverflow.Migrations
 
             modelBuilder.Entity("TaskOverflow.Models.SubTask", b =>
                 {
-                    b.HasOne("TaskOverflow.Models.SubTask", "ParentSubTask")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentSubTaskId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("TaskOverflow.Models.TaskItem", "TaskItem")
                         .WithMany("SubTasks")
                         .HasForeignKey("TaskItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ParentSubTask");
 
                     b.Navigation("TaskItem");
                 });
@@ -435,11 +400,6 @@ namespace TaskOverflow.Migrations
             modelBuilder.Entity("TaskOverflow.Models.ApplicationUser", b =>
                 {
                     b.Navigation("Tasks");
-                });
-
-            modelBuilder.Entity("TaskOverflow.Models.SubTask", b =>
-                {
-                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("TaskOverflow.Models.TaskItem", b =>

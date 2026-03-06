@@ -213,7 +213,6 @@ body::after {
     font-weight: 500;
     transition: all var(--transition-fast);
     position: relative;
-    overflow: hidden;
 }
 
     .btn::after {
@@ -264,7 +263,6 @@ body::after {
 .table {
     background-color: var(--bg-card);
     border-radius: var(--radius-lg);
-    overflow: hidden;
     box-shadow: 0 4px 6px var(--shadow-color);
 }
 
@@ -316,7 +314,6 @@ body::after {
         outline: none;
     }
 
-/* Pagination */
 .pagination {
     gap: var(--spacing-xs);
 }
@@ -339,7 +336,6 @@ body::after {
     background: var(--gradient-primary);
 }
 
-/* Theme Toggle Button */
 .theme-toggle {
     width: 40px;
     height: 40px;
@@ -453,17 +449,14 @@ body::after {
     background-clip: text;
 }
 
-/* Fallback if Inter font fails to load */
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Username input styling */
 input#Username {
-    text-transform: lowercase; /* Optional: force lowercase usernames */
+    text-transform: lowercase;
 }
 
-/* Placeholder hints */
 .input-group-text {
     transition: all var(--transition-fast);
 }
@@ -516,4 +509,23 @@ input#Username {
     100% {
         opacity: 1;
     }
+}
+
+header,
+header .navbar,
+header .container-fluid,
+header .navbar-collapse,
+header .navbar-nav,
+header .nav-item.dropdown {
+    overflow: visible !important;
+}
+
+    header .nav-item.dropdown .dropdown-menu {
+        z-index: 9999 !important;
+        position: absolute !important;
+    }
+
+.card:hover {
+    transform: none;
+    box-shadow: 0 8px 12px var(--shadow-color);
 }

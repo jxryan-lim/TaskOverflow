@@ -1,0 +1,1292 @@
+﻿@model TaskTimelineViewModel
+@using TaskOverflow.Models
+@{
+    ViewData["Title"] = "Timeline: " + Model.TaskTitle;
+
+    // Fixed to hours view only
+    const int CELL_WIDTH = 40; // Fixed cell width for hours
+    const int HOURS_PER_DAY = 24;
+
+    // Calculate today line position in hours
+    double todayOffsetPx = (DateTime.Today - Model.TimelineStartDate.Date).TotalDays * HOURS_PER_DAY * CELL_WIDTH;
+    bool showTodayLine = todayOffsetPx >= 0 && todayOffsetPx <= Model.DateHeaders.Count * HOURS_PER_DAY * CELL_WIDTH;
+
+    // Store the main task ID for reference
+    int mainTaskId = Model.TaskId;
+}
+
+@Html.AntiForgeryToken()
+
+<style>
+    body {
+        overflow: hidden;
+    }
+
+    .tl-root {
+        --tl-label-w: 280px;
+        --tl-row-h: 56px;
+        --tl-header-h: 72px; /* Increased height for two-line header */
+        --tl-cell-w: @(CELL_WIDTH)px;
+        --tl-accent: #4361ee;
+        --tl-accent-glow: rgba(67,97,238,0.10);
+        --tl-border: #e5e7eb;
+        --tl-row-hover: rgba(67,97,238,0.04);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 56px);
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .tl-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--tl-border);
+        flex-shrink: 0;
+        gap: 12px;
+        flex-wrap: wrap;
+        background: #fff;
+    }
+
+    .tl-title {
+        font-size: 16px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .tl-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .tl-gantt {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    /* LEFT fixed label column */
+    .tl-labels {
+        width: var(--tl-label-w);
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid var(--tl-border);
+        z-index: 10;
+        background: #fff;
+    }
+
+    .tl-labels-header {
+        height: var(--tl-header-h);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: #9ca3af;
+        border-bottom: 1px solid var(--tl-border);
+        flex-shrink: 0;
+    }
+
+    .tl-labels-body {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .tl-label-row {
+        height: var(--tl-row-h);
+        display: flex;
+        align-items: center;
+        padding: 0 12px 0 10px;
+        border-bottom: 1px solid var(--tl-border);
+        gap: 8px;
+        cursor: default;
+        transition: background .1s;
+    }
+
+        .tl-label-row:hover {
+            background: var(--tl-row-hover);
+        }
+
+    .tl-toggle-btn {
+        width: 20px;
+        height: 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+        color: #4361ee;
+        padding: 0;
+        transition: all .15s;
+    }
+
+        .tl-toggle-btn:hover {
+            background: var(--tl-accent-glow);
+            border-color: #4361ee;
+        }
+
+        .tl-toggle-btn.leaf {
+            visibility: hidden;
+        }
+
+    .tl-color-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .tl-label-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tl-label-name {
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+    }
+
+        .tl-label-name.tl-parent {
+            font-weight: 700;
+        }
+
+        .tl-label-name.tl-done {
+            opacity: .4;
+            text-decoration: line-through;
+        }
+
+    .tl-label-dates {
+        font-size: 11px;
+        color: #9ca3af;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tl-status-pill {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .tl-pill-done {
+        background: rgba(16,185,129,.12);
+        color: #059669;
+    }
+
+    .tl-pill-active {
+        background: rgba(67,97,238,.12);
+        color: #4361ee;
+    }
+
+    .tl-pill-pending {
+        background: rgba(107,114,128,.1);
+        color: #6b7280;
+    }
+
+    /* RIGHT — ONE shared scroll container */
+    .tl-scroll {
+        flex: 1;
+        overflow-x: auto;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e5e7eb transparent;
+    }
+
+        .tl-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .tl-scroll::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 3px;
+        }
+
+    .tl-scroll-inner {
+        min-width: max-content;
+        position: relative;
+    }
+
+    /* Date header — sticky INSIDE the shared scroll container */
+    .tl-date-header {
+        height: var(--tl-header-h);
+        display: flex;
+        position: sticky;
+        top: 0;
+        z-index: 8;
+        background: #fff;
+        border-bottom: 1px solid var(--tl-border);
+    }
+
+    .tl-day-group {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--tl-border);
+    }
+
+    .tl-day-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+        color: #4361ee;
+        padding: 5px 10px 2px;
+        white-space: nowrap;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .tl-hours-row {
+        display: flex;
+        flex: 1;
+    }
+
+    .tl-hour-cell {
+        width: var(--tl-cell-w);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        border-right: 1px solid var(--tl-border);
+        color: #9ca3af;
+        user-select: none;
+        background: #fff;
+    }
+
+        .tl-hour-cell.tl-night-hour {
+            background: #f5f5f5;
+        }
+
+        .tl-hour-cell.tl-today {
+            background: var(--tl-accent-glow);
+            color: #4361ee;
+            font-weight: 700;
+        }
+
+        .tl-hour-cell.tl-col-selected {
+            background: rgba(67, 97, 238, 0.18) !important;
+            color: #4361ee;
+            font-weight: 700;
+        }
+
+    .tl-hour-num {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .tl-hour-ampm {
+        font-size: 8px;
+        opacity: 0.7;
+    }
+
+    .tl-rows-area {
+        position: relative;
+        user-select: none;
+    }
+
+    .tl-grid-row {
+        height: var(--tl-row-h);
+        display: flex;
+        border-bottom: 1px solid var(--tl-border);
+    }
+
+        .tl-grid-row:hover {
+            background: var(--tl-row-hover);
+        }
+
+        .tl-grid-row.tl-drag-active {
+            background: rgba(67, 97, 238, 0.02);
+        }
+
+    .tl-grid-cell {
+        width: var(--tl-cell-w);
+        height: 100%;
+        border-right: 1px solid var(--tl-border);
+        flex-shrink: 0;
+        cursor: crosshair;
+        position: relative;
+    }
+
+        .tl-grid-cell.tl-night-hour {
+            background: #fafafa;
+        }
+
+        .tl-grid-cell.tl-today {
+            background: var(--tl-accent-glow);
+        }
+
+        .tl-grid-cell.tl-cell-selected {
+            background: rgba(67, 97, 238, 0.12) !important;
+        }
+
+            .tl-grid-cell.tl-cell-selected::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-top: 2px solid rgba(67, 97, 238, 0.5);
+                border-bottom: 2px solid rgba(67, 97, 238, 0.5);
+                pointer-events: none;
+            }
+
+        .tl-grid-cell.tl-sel-first::after {
+            border-left: 2px solid rgba(67, 97, 238, 0.8);
+        }
+
+        .tl-grid-cell.tl-sel-last::after {
+            border-right: 2px solid rgba(67, 97, 238, 0.8);
+        }
+
+    .tl-today-line {
+        position: absolute;
+        top: 0;
+        width: 2px;
+        background: #4361ee;
+        z-index: 6;
+        pointer-events: none;
+    }
+
+    .tl-today-badge {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #4361ee;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        padding: 2px 5px;
+        border-radius: 3px;
+        letter-spacing: .06em;
+        white-space: nowrap;
+    }
+
+    .tl-bar {
+        position: absolute;
+        height: 28px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        cursor: grab;
+        z-index: 5;
+        overflow: hidden;
+        transition: filter .15s, box-shadow .15s;
+        box-shadow: 0 1px 4px rgba(0,0,0,.12);
+        box-sizing: border-box;
+        font-size: 10px;
+    }
+
+        .tl-bar:hover {
+            filter: brightness(1.12);
+            box-shadow: 0 3px 10px rgba(0,0,0,.18);
+            z-index: 7;
+        }
+
+        .tl-bar.tl-bar-dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            box-shadow: 0 6px 20px rgba(0,0,0,.28);
+            z-index: 50;
+            transition: none;
+        }
+
+        .tl-bar.tl-bar-parent {
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .tl-bar.tl-bar-done {
+            opacity: .5;
+        }
+
+    .tl-bar-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        background: rgba(255,255,255,.22);
+        pointer-events: none;
+        border-radius: inherit;
+    }
+
+    .tl-bar-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(255,255,255,.95);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 1px 2px rgba(0,0,0,.2);
+    }
+
+    .tl-bar-handle {
+        position: absolute;
+        top: 0;
+        width: 6px;
+        height: 100%;
+        cursor: ew-resize;
+        opacity: 0;
+        transition: opacity .15s;
+        z-index: 8;
+    }
+
+    .tl-bar:hover .tl-bar-handle {
+        opacity: 1;
+    }
+
+    .tl-bar-handle.left {
+        left: 0;
+        background: linear-gradient(to right, rgba(255,255,255,.4), transparent);
+    }
+
+    .tl-bar-handle.right {
+        right: 0;
+        background: linear-gradient(to left, rgba(255,255,255,.4), transparent);
+    }
+
+    .tl-drag-tooltip {
+        position: fixed;
+        background: #4361ee;
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        z-index: 9999;
+        pointer-events: none;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,.2);
+        white-space: nowrap;
+    }
+
+    .tl-swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        display: inline-block;
+        transition: all .15s;
+    }
+
+        .tl-swatch:hover, .tl-swatch.selected {
+            border-color: #fff;
+            transform: scale(1.15);
+            box-shadow: 0 0 0 2px #4361ee;
+        }
+</style>
+
+<div class="tl-root">
+
+    <div class="tl-topbar">
+        <h1 class="tl-title"><i class="bi bi-calendar3"></i> @Model.TaskTitle (Hourly View)</h1>
+        <div class="tl-controls">
+            <button class="btn btn-sm btn-outline-primary" onclick="scrollToToday()"><i class="bi bi-crosshair"></i> Today</button>
+            <a asp-action="Edit" asp-route-id="@Model.TaskId" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+    </div>
+
+    <div class="tl-gantt">
+
+        <div class="tl-labels">
+            <div class="tl-labels-header">Task / Subtask</div>
+            <div class="tl-labels-body" id="tlLabelsBody">
+                @{
+                    void RenderLabel(TimelineItemViewModel item, int level)
+                    {
+                        bool hasKids = item.Children.Any();
+                        string color = item.ColorCode ?? "#4361ee";
+                        bool isDone = item.IsCompleted;
+                        string dates = (item.StartDate.HasValue || item.EndDate.HasValue)
+                        ? $"{item.StartDate?.ToString("MMM dd HH:mm")} \u2192 {item.EndDate?.ToString("MMM dd HH:mm")}"
+                        : "No dates set";
+                        string pillCss = isDone ? "tl-pill-done" : item.StartDate.HasValue ? "tl-pill-active" : "tl-pill-pending";
+                        string pillTxt = isDone ? "Done" : item.StartDate.HasValue ? "Active" : "Pending";
+                        string titleJs = System.Text.Json.JsonSerializer.Serialize(item.Title);
+                        string startJs = item.StartDate?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+                        string endJs = item.EndDate?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+                        int indent = level * 22;
+
+                        <div class="tl-label-row" data-item-id="@item.Id"
+                             ondblclick="openEditModal(@item.Id, @Html.Raw(titleJs), '@startJs', '@endJs', '@color', @(isDone?"true":"false"))">
+                            <div style="width:@(indent)px;flex-shrink:0"></div>
+                            <button class="tl-toggle-btn @(!hasKids?"leaf":"")" id="toggle-@item.Id"
+                                    onclick="toggleRow(@item.Id, event)">
+                                @(hasKids ? "▾" : "")
+                            </button>
+                            <div class="tl-color-dot" style="background:@color"></div>
+                            <div class="tl-label-text">
+                                <div class="tl-label-name @(level==0?"tl-parent":"") @(isDone?"tl-done":"")">@item.Title</div>
+                                <div class="tl-label-dates">@dates</div>
+                            </div>
+                            <span class="tl-status-pill @pillCss">@pillTxt</span>
+                        </div>
+
+                        if (hasKids)
+                        {
+                            <div id="label-children-@item.Id">
+                                @foreach (var child in item.Children) { RenderLabel(child, level + 1); }
+                            </div>
+                        }
+                    }
+
+                    foreach (var item in Model.TimelineItems) { RenderLabel(item, 0); }
+                }
+            </div>
+        </div>
+
+        <div class="tl-scroll" id="tlScroll">
+            <div class="tl-scroll-inner">
+
+                <div class="tl-date-header" id="tlDateHeader">
+                    @{
+                        // Group hours by day - use the fixed timeline range instead of hardcoded 7 days
+                        var hoursByDay = new List<DateTime>();
+                        var currentHour = Model.TimelineStartDate;
+                        var endHour = Model.TimelineEndDate;
+
+                        while (currentHour <= endHour && hoursByDay.Count < 500) // Cap at 500 hours
+                        {
+                            hoursByDay.Add(currentHour);
+                            currentHour = currentHour.AddHours(1);
+                        }
+
+                        var dayGroups = hoursByDay
+                        .GroupBy(d => d.Date)
+                        .OrderBy(g => g.Key);
+
+                        int colIndex = 0;
+                        foreach (var dayGroup in dayGroups)
+                        {
+                            <div class="tl-day-group">
+                                <div class="tl-day-label">@dayGroup.Key.ToString("ddd MMM d")</div>
+                                <div class="tl-hours-row">
+                                    @foreach (var hour in dayGroup)
+                                    {
+                                        bool isNight = hour.Hour < 7 || hour.Hour > 19;
+                                        bool isToday = hour.Date == DateTime.Today;
+
+                                        string hourDisplay = hour.Hour.ToString();
+                                        string ampm = hour.ToString("tt", System.Globalization.CultureInfo.InvariantCulture).ToLower();
+
+                                        <div class="tl-hour-cell @(isNight?"tl-night-hour":"") @(isToday?"tl-today":"")"
+                                             data-col-index="@colIndex">
+                                            <span class="tl-hour-num">@hourDisplay</span>
+                                            <span class="tl-hour-ampm">@ampm</span>
+                                        </div>
+                                        colIndex++;
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="tl-rows-area" id="tlRowsArea">
+
+                    @if (showTodayLine)
+                    {
+                        <div class="tl-today-line" id="tlTodayLine"
+                             style="left:@(Math.Round(todayOffsetPx))px; height:100%;">
+                            <div class="tl-today-badge">TODAY</div>
+                        </div>
+                    }
+
+                    <div class="tl-drag-overlay" id="tlDragOverlay"></div>
+
+                    @{
+                        void RenderGridRow(TimelineItemViewModel item, int level)
+                        {
+                            // Determine the type based on whether this is the main task or a subtask
+                            string itemType = (item.Id == mainTaskId && !item.ParentSubTaskId.HasValue) ? "task" : "subtask";
+
+                            <div class="tl-grid-row" data-row-id="@item.Id"
+                                 data-row-type="@itemType"
+                                 data-row-title="@item.Title">
+                                @for (int i = 0; i < hoursByDay.Count; i++)
+                                {
+                                    var hour = hoursByDay[i];
+                                    bool isNight = hour.Hour < 7 || hour.Hour > 19;
+                                    bool isToday = hour.Date == DateTime.Today;
+                                    <div class="tl-grid-cell @(isNight?"tl-night-hour":"") @(isToday?"tl-today":"")"
+                                         data-item-id="@item.Id"
+                                         data-item-type="@itemType"
+                                         data-item-title="@item.Title"
+                                         data-col-index="@i"></div>
+                                }
+                            </div>
+                            if (item.Children.Any())
+                            {
+                                <div id="grid-children-@item.Id">
+                                    @foreach (var child in item.Children)
+                                    {
+                                        RenderGridRow(child, level + 1);
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+
+                    @{
+                        int cellW = CELL_WIDTH;
+                        void RenderBar(TimelineItemViewModel item, int level)
+                        {
+                            string color = item.ColorCode ?? "#4361ee";
+                            bool isDone = item.IsCompleted;
+                            string titleJs = System.Text.Json.JsonSerializer.Serialize(item.Title);
+                            string startJs = item.StartDate?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+                            string endJs = item.EndDate?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+
+                            if (item.StartDate.HasValue && item.EndDate.HasValue)
+                            {
+                                // Calculate position based on exact hour boundaries
+                                double startOffset = (item.StartDate.Value - Model.TimelineStartDate).TotalHours;
+                                double endOffset = (item.EndDate.Value - Model.TimelineStartDate).TotalHours;
+
+                                // Ensure minimum width of 1 hour
+                                if (endOffset <= startOffset) endOffset = startOffset + 1;
+
+                                double barLeft = startOffset * cellW;
+                                double barWidth = (endOffset - startOffset) * cellW;
+
+                                <div class="tl-bar @(level==0?"tl-bar-parent":"") @(isDone?"tl-bar-done":"")"
+                                     id="bar-@item.Id" data-id="@item.Id"
+                                     data-start="@item.StartDate?.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                     data-end="@item.EndDate?.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                     data-duration-ms="@((long)(item.EndDate.Value - item.StartDate.Value).TotalMilliseconds)"
+                                     style="left:@(Math.Round(barLeft, 1))px; width:@(Math.Round(barWidth, 1))px; background:@color;"
+                                     ondblclick="openEditModal(@item.Id,@Html.Raw(titleJs),'@startJs','@endJs','@color',@(isDone?"true":"false"))">
+                                    <div class="tl-bar-fill" style="width:@(isDone?"100":"0")%"></div>
+                                    @if (barWidth > 50)
+                                    {
+                                        <span class="tl-bar-label">@item.Title</span>
+                                    }
+                                    <div class="tl-bar-handle left" data-handle="left"></div>
+                                    <div class="tl-bar-handle right" data-handle="right"></div>
+                                </div>
+                            }
+                            if (item.Children.Any())
+                            {
+                                foreach (var child in item.Children) { RenderBar(child, level + 1); }
+                            }
+                        }
+                        foreach (var item in Model.TimelineItems)
+                        {
+                            RenderGridRow(item, 0);
+                        }
+
+                        foreach (var item in Model.TimelineItems)
+                        {
+                            RenderBar(item, 0);
+                        }
+                    }
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="tlEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="meId" />
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Title</label>
+                    <input type="text" class="form-control" id="meTitle" />
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Start Date/Time</label>
+                        <input type="datetime-local" class="form-control" id="meStart" step="3600" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">End Date/Time</label>
+                        <input type="datetime-local" class="form-control" id="meEnd" step="3600" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Color</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        @foreach (var c in new[] { "#4361ee", "#20c997", "#ff6b6b", "#ffd166", "#9c88ff", "#4cd3c2", "#f78c6c", "#b388ff" })
+                        {
+                            <div class="tl-swatch" style="background:@c" data-color="@c" onclick="pickColor('@c')"></div>
+                        }
+                    </div>
+                    <input type="hidden" id="meColor" value="#4361ee" />
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="meDone" />
+                    <label class="form-check-label">Mark as completed</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-danger me-auto" onclick="clearDates()"><i class="bi bi-trash"></i> Clear Dates</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tl-drag-tooltip" id="tlDragTooltip"></div>
+
+@section Scripts {
+    <script>
+        const CELL_W = @CELL_WIDTH;
+        const TL_START = new Date('@Model.TimelineStartDate.ToString("yyyy-MM-dd HH:mm:ss")');
+        const CSRF = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        // Calculate total hours based on the hoursByDay list we created
+        const TOTAL_HOURS = @hoursByDay.Count;
+
+        console.log('Timeline initialized:', {
+            cellWidth: CELL_W,
+            totalHours: TOTAL_HOURS,
+            startDate: TL_START.toISOString(),
+            hasRowsArea: !!document.getElementById('tlRowsArea')
+        });
+
+        const tlScroll = document.getElementById('tlScroll');
+        const tlLabelsBody = document.getElementById('tlLabelsBody');
+        const rowsArea = document.getElementById('tlRowsArea');
+        const tooltip = document.getElementById('tlDragTooltip');
+
+        if (!rowsArea) {
+            console.error('Rows area not found!');
+        }
+
+        // ─── Sync vertical scroll ────────────────────────────────────────────
+        tlScroll.addEventListener('scroll', () => {
+            tlLabelsBody.scrollTop = tlScroll.scrollTop;
+        }, { passive: true });
+
+        // ─── Helpers ─────────────────────────────────────────────────────────
+        function fmtDate(d) {
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtHour(d) {
+            return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        }
+
+        /** Snap a pixel offset to the nearest hour cell boundary */
+        function snapPxToCell(px) {
+            return Math.round(px / CELL_W) * CELL_W;
+        }
+
+        /** Convert pixel offset from TL_START → Date (start of hour) */
+        function pxToDate(px) {
+            const hours = px / CELL_W;
+            const date = new Date(TL_START.getTime() + hours * 60 * 60 * 1000);
+            // Round to the nearest hour to ensure consistency
+            date.setMinutes(0, 0, 0);
+            return date;
+        }
+
+        /** Convert pixel offset from TL_START → Date (end of hour for right edge) */
+        function pxToDateEnd(px) {
+            const hours = px / CELL_W;
+            const date = new Date(TL_START.getTime() + hours * 60 * 60 * 1000);
+            // Set to the end of the hour (59:59.999)
+            date.setMinutes(59, 59, 999);
+            return date;
+        }
+
+        /** Position bars above their matching grid rows */
+        function positionBars() {
+            const bars = document.querySelectorAll('.tl-bar');
+            if (!bars.length) return;
+
+            bars.forEach(bar => {
+                const row = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${bar.dataset.id}"]`);
+                if (!row) return;
+                const barH = bar.classList.contains('tl-bar-parent') ? 20 : 28;
+                bar.style.top = (row.offsetTop + (row.offsetHeight - barH) / 2) + 'px';
+                bar.style.position = 'absolute';
+            });
+        }
+
+        function toggleRow(id, e) {
+            e.stopPropagation();
+            const lk = document.getElementById(`label-children-${id}`);
+            const gk = document.getElementById(`grid-children-${id}`);
+            const btn = document.getElementById(`toggle-${id}`);
+            if (!lk) return;
+            const hide = lk.style.display !== 'none';
+            lk.style.display = hide ? 'none' : '';
+            if (gk) gk.style.display = hide ? 'none' : '';
+            btn.textContent = hide ? '\u25b8' : '\u25be';
+            positionBars();
+        }
+
+        function scrollToToday() {
+            const line = document.getElementById('tlTodayLine');
+            if (!line) return;
+            const left = parseInt(line.style.left) || 0;
+            tlScroll.scrollTo({ left: Math.max(0, left - tlScroll.clientWidth / 2), behavior: 'smooth' });
+        }
+
+        // ─── Excel-style drag-to-select on grid cells ────────────────────────
+        let selDragging = false;
+        let selItemId, selItemType, selItemTitle;
+        let selStartCol, selEndCol;  // column indices (integers)
+
+        function paintSelection(minCol, maxCol, rowId) {
+            // Clear previous selections
+            document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+            document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
+
+            // Highlight header hour cells (this is fine - shows which columns are selected)
+            document.querySelectorAll('.tl-hour-cell[data-col-index]').forEach(el => {
+                const ci = parseInt(el.dataset.colIndex);
+                if (ci >= minCol && ci <= maxCol) {
+                    el.classList.add('tl-col-selected');
+                }
+            });
+
+            // ONLY highlight grid cells in the SPECIFIC row being dragged
+            const targetRow = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${rowId}"]`);
+            if (!targetRow) return;
+
+            targetRow.querySelectorAll('.tl-grid-cell[data-col-index]').forEach(el => {
+                const ci = parseInt(el.dataset.colIndex);
+                if (ci >= minCol && ci <= maxCol) {
+                    el.classList.add('tl-cell-selected');
+                    if (ci === minCol) el.classList.add('tl-sel-first');
+                    if (ci === maxCol) el.classList.add('tl-sel-last');
+                }
+            });
+        }
+
+        function clearSelection() {
+            // Clear header highlights
+            document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+
+            // Clear ALL cell selections (but we'll only highlight one row at a time anyway)
+            document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
+        }
+
+        /** Get column index from a mouse X position inside the scroll area */
+        function colIndexFromClientX(clientX) {
+            if (!rowsArea) return 0;
+
+            const rect = rowsArea.getBoundingClientRect();
+            const scrollLeft = tlScroll.scrollLeft;
+
+            // Get all grid cells in the first row to find their positions
+            const firstRow = rowsArea.querySelector('.tl-grid-row');
+            if (!firstRow) return 0;
+
+            const cells = firstRow.querySelectorAll('.tl-grid-cell');
+            if (!cells.length) return 0;
+
+            // Find the cell that contains this mouse position
+            for (let i = 0; i < cells.length; i++) {
+                const cellRect = cells[i].getBoundingClientRect();
+                const cellLeft = cellRect.left;
+                const cellRight = cellRect.right;
+
+                // Check if mouse is within this cell's bounds
+                if (clientX >= cellLeft && clientX <= cellRight) {
+                    return i; // Return the actual column index
+                }
+            }
+
+            // If we didn't find a cell, calculate based on position
+            const px = clientX - rect.left + scrollLeft;
+            let col = Math.floor(px / CELL_W);
+            col = Math.min(cells.length - 1, Math.max(0, col));
+
+            return col;
+        }
+
+        if (rowsArea) {
+            rowsArea.addEventListener('mousedown', e => {
+                // Ignore if clicking on a bar or handle — bar drag will handle it
+                if (e.target.closest('.tl-bar')) return;
+
+                const cell = e.target.closest('.tl-grid-cell');
+                if (!cell) return;
+
+                e.preventDefault();
+
+                // DEBUG: Log the cell's data attributes
+                console.log('Cell clicked:', {
+                    id: cell.dataset.itemId,
+                    type: cell.dataset.itemType,
+                    title: cell.dataset.itemTitle,
+                    colIndex: cell.dataset.colIndex,
+                    actualElement: cell.outerHTML
+                });
+
+                // Remove active class from any previously active row
+                document.querySelectorAll('.tl-grid-row.tl-drag-active').forEach(el => {
+                    el.classList.remove('tl-drag-active');
+                });
+
+                // Add active class to the current row
+                const currentRow = cell.closest('.tl-grid-row');
+                if (currentRow) {
+                    currentRow.classList.add('tl-drag-active');
+                }
+
+                selItemId = cell.dataset.itemId;
+                selItemType = cell.dataset.itemType;
+                selItemTitle = cell.dataset.itemTitle;
+                selStartCol = parseInt(cell.dataset.colIndex);
+                selEndCol = selStartCol;
+                selDragging = true;
+
+                paintSelection(selStartCol, selEndCol, selItemId);
+                showSelTooltip(e, selStartCol, selEndCol);
+
+                document.addEventListener('mousemove', onSelMove);
+                document.addEventListener('mouseup', onSelEnd);
+            });
+        }
+
+        function onSelMove(e) {
+            if (!selDragging) return;
+
+            // Get the column index based on actual cell positions
+            const col = colIndexFromClientX(e.clientX);
+
+            // Only update if the column changed
+            if (col !== selEndCol) {
+                selEndCol = col;
+                const minC = Math.min(selStartCol, selEndCol);
+                const maxC = Math.max(selStartCol, selEndCol);
+
+                // Clear previous selection first
+                document.querySelectorAll('.tl-col-selected').forEach(el => el.classList.remove('tl-col-selected'));
+                document.querySelectorAll('.tl-cell-selected, .tl-sel-first, .tl-sel-last')
+                    .forEach(el => el.classList.remove('tl-cell-selected', 'tl-sel-first', 'tl-sel-last'));
+
+                // Paint new selection
+                paintSelection(minC, maxC, selItemId);
+                showSelTooltip(e, minC, maxC);
+            }
+        }
+
+        function showSelTooltip(e, minC, maxC) {
+            // Start date is the beginning of the first selected cell
+            const startDate = pxToDate(minC * CELL_W);
+
+            // End date is the END of the last selected cell
+            const endDate = pxToDateEnd((maxC + 1) * CELL_W);
+
+            tooltip.textContent = `${fmtDate(startDate)} → ${fmtDate(endDate)}`;
+            tooltip.style.cssText = `left:${e.clientX + 14}px;top:${e.clientY - 32}px;display:block;`;
+        }
+
+        async function onSelEnd(e) {
+            if (!selDragging) return;
+            selDragging = false;
+            tooltip.style.display = 'none';
+
+            // Remove drag active class
+            document.querySelectorAll('.tl-grid-row.tl-drag-active').forEach(el => {
+                el.classList.remove('tl-drag-active');
+            });
+
+            document.removeEventListener('mousemove', onSelMove);
+            document.removeEventListener('mouseup', onSelEnd);
+
+            const minC = Math.min(selStartCol, selEndCol);
+            const maxC = Math.max(selStartCol, selEndCol);
+            clearSelection();
+
+            // If it was just a click (no drag), skip
+            if (minC === maxC && selStartCol === selEndCol) return;
+
+            // Calculate dates at cell boundaries
+            const startDate = pxToDate(minC * CELL_W);
+            const endDate = pxToDateEnd((maxC + 1) * CELL_W);
+
+            console.log('Selected range:', {
+                itemId: selItemId,
+                itemType: selItemType,
+                itemTitle: selItemTitle,
+                startDate: fmtDate(startDate),
+                endDate: fmtDate(endDate),
+                startISO: startDate.toISOString(),
+                endISO: endDate.toISOString(),
+                startLocal: startDate.toString(),
+                endLocal: endDate.toString()
+            });
+
+            if (!confirm(`Set "${selItemTitle}"\n${fmtDate(startDate)} → ${fmtDate(endDate)}`)) return;
+
+            try {
+                const startResult = await postDate(selItemId, selItemType, startDate.toISOString(), true);
+                const endResult = await postDate(selItemId, selItemType, endDate.toISOString(), false);
+
+                if (startResult.ok && endResult.ok) {
+                    console.log('Both dates saved successfully');
+                    location.reload();
+                } else {
+                    console.error('Failed to save dates');
+                    alert('Failed to save dates. Check console for details.');
+                }
+            } catch (error) {
+                console.error('Error saving dates:', error);
+                alert('Error saving dates: ' + error.message);
+            }
+        }
+
+        // ─── Bar drag: MOVE (grab body) + RESIZE (grab handles) ─────────────
+        let barDrag = null;
+
+        document.addEventListener('mousedown', e => {
+            const handle = e.target.closest('.tl-bar-handle');
+            const bar = e.target.closest('.tl-bar');
+            if (!bar) return;
+
+            if (e.detail >= 2) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const mode = handle
+                ? (handle.dataset.handle === 'left' ? 'left' : 'right')
+                : 'move';
+
+            barDrag = {
+                bar,
+                mode,
+                startX: e.clientX,
+                origLeft: parseFloat(bar.style.left),
+                origWidth: parseFloat(bar.style.width),
+                durationMs: parseInt(bar.dataset.durationMs || 0),
+            };
+
+            bar.classList.add('tl-bar-dragging');
+            bar.style.transition = 'none';
+
+            document.addEventListener('mousemove', onBarMove);
+            document.addEventListener('mouseup', onBarUp);
+        });
+
+        function onBarMove(e) {
+            if (!barDrag) return;
+            const dx = e.clientX - barDrag.startX;
+
+            if (barDrag.mode === 'move') {
+                const rawLeft = barDrag.origLeft + dx;
+                const snapped = Math.round(rawLeft / CELL_W) * CELL_W;
+                barDrag.bar.style.left = snapped + 'px';
+
+                const newStart = pxToDate(snapped);
+                const newEnd = pxToDateEnd(snapped + barDrag.origWidth);
+                tooltip.textContent = `${fmtDate(newStart)} → ${fmtDate(newEnd)}`;
+
+            } else if (barDrag.mode === 'right') {
+                const rawW = barDrag.origWidth + dx;
+                const snappedW = Math.max(CELL_W, Math.round(rawW / CELL_W) * CELL_W);
+                barDrag.bar.style.width = snappedW + 'px';
+
+                const barStart = pxToDate(barDrag.origLeft);
+                const newEnd = pxToDateEnd(barDrag.origLeft + snappedW);
+                tooltip.textContent = `${fmtDate(barStart)} → ${fmtDate(newEnd)}`;
+
+            } else if (barDrag.mode === 'left') {
+                const rawLeft = barDrag.origLeft + dx;
+                const maxLeft = barDrag.origLeft + barDrag.origWidth - CELL_W;
+                const snapped = Math.min(maxLeft, Math.round(rawLeft / CELL_W) * CELL_W);
+                const newWidth = barDrag.origLeft + barDrag.origWidth - snapped;
+
+                barDrag.bar.style.left = snapped + 'px';
+                barDrag.bar.style.width = newWidth + 'px';
+
+                const newStart = pxToDate(snapped);
+                const barEnd = pxToDateEnd(barDrag.origLeft + barDrag.origWidth);
+                tooltip.textContent = `${fmtDate(newStart)} → ${fmtDate(barEnd)}`;
+            }
+
+            tooltip.style.cssText = `left:${e.clientX + 14}px;top:${e.clientY - 32}px;display:block;`;
+        }
+
+        async function onBarUp(e) {
+            if (!barDrag) return;
+            const { bar, mode, origLeft, origWidth } = barDrag;
+            barDrag = null;
+
+            bar.classList.remove('tl-bar-dragging');
+            bar.style.transition = '';
+            tooltip.style.display = 'none';
+            document.removeEventListener('mousemove', onBarMove);
+            document.removeEventListener('mouseup', onBarUp);
+
+            const newLeft = parseFloat(bar.style.left);
+            const newWidth = parseFloat(bar.style.width);
+
+            if (Math.abs(newLeft - origLeft) < 2 && Math.abs(newWidth - origWidth) < 2) return;
+
+            const startDate = pxToDate(newLeft);
+            const endDate = pxToDateEnd(newLeft + newWidth);
+
+            const id = bar.dataset.id;
+            const type = rowsArea?.querySelector(`.tl-grid-row[data-row-id="${id}"]`)?.dataset.rowType ?? 'subtask';
+
+            if (!confirm(`Update dates?\n${fmtDate(startDate)} → ${fmtDate(endDate)}`)) {
+                bar.style.left = origLeft + 'px';
+                bar.style.width = origWidth + 'px';
+                return;
+            }
+
+            await Promise.all([
+                postDate(id, type, startDate.toISOString(), true),
+                postDate(id, type, endDate.toISOString(), false)
+            ]);
+            location.reload();
+        }
+
+        // ─── API ─────────────────────────────────────────────────────────────
+        async function postDate(id, type, iso, isStart) {
+            // Parse the ISO string to a Date object
+            const date = new Date(iso);
+
+            // Format as local date string to preserve the exact hour
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            // Create a local date string that will be parsed correctly
+            const localDateStr = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+            console.log('Saving:', {
+                id,
+                type,
+                originalIso: iso,
+                localDateStr: localDateStr,
+                isStart
+            });
+
+            return fetch('/Tasks/SetItemDate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': CSRF },
+                body: JSON.stringify({
+                    id: parseInt(id),
+                    type,
+                    date: localDateStr,
+                    isStart
+                })
+            });
+        }
+
+        // ─── Edit Modal ───────────────────────────────────────────────────────
+        let _modal = null;
+        function openEditModal(id, title, start, end, color, done) {
+            document.getElementById('meId').value = id;
+            document.getElementById('meTitle').value = title;
+            document.getElementById('meStart').value = start || '';
+            document.getElementById('meEnd').value = end || '';
+            document.getElementById('meDone').checked = done === true || done === 'true';
+            pickColor(color || '#4361ee');
+            _modal = _modal || new bootstrap.Modal(document.getElementById('tlEditModal'));
+            _modal.show();
+        }
+
+        function pickColor(c) {
+            document.getElementById('meColor').value = c;
+            document.querySelectorAll('.tl-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === c));
+        }
+
+        async function saveEdit() {
+            const id = parseInt(document.getElementById('meId').value);
+            const title = document.getElementById('meTitle').value.trim();
+            if (!title) { alert('Title is required'); return; }
+
+            await fetch('/Tasks/UpdateSubtaskDetails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': CSRF },
+                body: JSON.stringify({
+                    id, title,
+                    startDate: document.getElementById('meStart').value || null,
+                    endDate: document.getElementById('meEnd').value || null,
+                    colorCode: document.getElementById('meColor').value,
+                    isCompleted: document.getElementById('meDone').checked,
+                    estimatedHours: null
+                })
+            });
+            _modal?.hide(); location.reload();
+        }
+
+        async function clearDates() {
+            if (!confirm('Clear dates for this item?')) return;
+            const id = parseInt(document.getElementById('meId').value);
+            await postDate(id, 'subtask', null, true);
+            await postDate(id, 'subtask', null, false);
+            _modal?.hide(); location.reload();
+        }
+        // Debug function to check cell alignment
+        function debugCellAlignment() {
+            const firstRow = rowsArea?.querySelector('.tl-grid-row');
+            if (!firstRow) return;
+
+            const cells = firstRow.querySelectorAll('.tl-grid-cell');
+            console.log('Total cells:', cells.length);
+
+            // Log positions of first few cells
+            for (let i = 0; i < Math.min(5, cells.length); i++) {
+                const rect = cells[i].getBoundingClientRect();
+                console.log(`Cell ${i}: left=${rect.left}, right=${rect.right}, width=${rect.width}`);
+            }
+        }
+
+        // Call it after initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            positionBars();
+            setTimeout(() => {
+                scrollToToday();
+                debugCellAlignment();
+            }, 100);
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            positionBars();
+            setTimeout(() => scrollToToday(), 100);
+        });
+
+        window.addEventListener('resize', positionBars);
+    </script>
+}

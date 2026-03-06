@@ -1,0 +1,155 @@
+@model TaskOverflow.Models.ProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+    var success = TempData["SuccessMessage"]?.ToString();
+}
+
+@section Styles {
+<style>
+    .profile-hero {
+        background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        border-radius: 1rem;
+        padding: 2.5rem 2rem 5rem;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    .profile-hero::after {
+        content: '';
+        position: absolute;
+        bottom: -40px; left: -20px; right: -20px;
+        height: 80px;
+        background: var(--bs-body-bg, #f8f9fa);
+        border-radius: 50%;
+    }
+    .profile-avatar-lg {
+        width: 88px; height: 88px; border-radius: 50%;
+        background: rgba(255,255,255,.25);
+        border: 3px solid rgba(255,255,255,.6);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.2rem; font-weight: 700; color: #fff;
+        margin: 0 auto 1rem;
+    }
+    .profile-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(0,0,0,.08);
+        box-shadow: 0 2px 16px rgba(0,0,0,.06);
+    }
+    .stat-pill {
+        background: #f0f4ff;
+        border-radius: .6rem;
+        padding: .6rem 1.2rem;
+        text-align: center;
+        flex: 1;
+    }
+    .stat-pill .stat-value { font-size: 1.4rem; font-weight: 700; color: #1a73e8; }
+    .stat-pill .stat-label { font-size: .75rem; color: #666; }
+    .form-label { font-weight: 500; }
+
+    [data-theme="dark"] .profile-hero::after { background: #111827; }
+    [data-theme="dark"] .profile-card { background: #1e2130; border-color: rgba(255,255,255,.08); }
+    [data-theme="dark"] .stat-pill { background: rgba(26,115,232,.15); }
+    [data-theme="dark"] .stat-pill .stat-label { color: #aaa; }
+</style>
+}
+
+<div class="container py-4" style="max-width: 680px;">
+
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @success
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Hero banner -->
+    <div class="profile-hero text-center mb-5">
+        <div class="profile-avatar-lg mx-auto">
+            @(Model.FirstName.Length > 0 ? Model.FirstName[0].ToString().ToUpper() : Model.Username[0].ToString().ToUpper())
+        </div>
+        <h4 class="fw-bold mb-0">
+            @((!string.IsNullOrEmpty(Model.FirstName) || !string.IsNullOrEmpty(Model.LastName))
+                ? $"{Model.FirstName} {Model.LastName}".Trim()
+                : Model.Username)
+        </h4>
+        <p class="opacity-75 mb-0 small">@@@Model.Username</p>
+    </div>
+
+    <!-- Edit form card -->
+    <div class="card profile-card p-4 mb-4">
+        <h5 class="fw-semibold mb-4 d-flex align-items-center gap-2">
+            <i class="bi bi-person-lines-fill text-primary"></i> Profile Details
+        </h5>
+
+        <form asp-action="Profile" method="post">
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="All" class="alert alert-danger py-2 small" style="display:none">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+            </div>
+            <div asp-validation-summary="All" class="text-danger small mb-3"></div>
+
+            <!-- Username (read-only) -->
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-at"></i></span>
+                    <input type="text" class="form-control bg-light" value="@Model.Username" readonly>
+                </div>
+                <div class="form-text">Username cannot be changed.</div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label asp-for="FirstName" class="form-label"></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input asp-for="FirstName" class="form-control" placeholder="First name">
+                    </div>
+                    <span asp-validation-for="FirstName" class="text-danger small"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="LastName" class="form-label"></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input asp-for="LastName" class="form-control" placeholder="Last name">
+                    </div>
+                    <span asp-validation-for="LastName" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Email" class="form-label"></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input asp-for="Email" class="form-control" placeholder="your@email.com">
+                </div>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-save me-1"></i> Save Changes
+                </button>
+                <a asp-action="Settings" class="btn btn-outline-secondary">
+                    <i class="bi bi-gear me-1"></i> Change Password
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Quick links -->
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a asp-controller="Tasks" asp-action="Index" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-list-task me-1"></i> My Tasks
+        </a>
+        <a asp-controller="Tasks" asp-action="Dashboard" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

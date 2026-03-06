@@ -1,0 +1,67 @@
+﻿@model TimelineItemViewModel
+@using TaskOverflow.Models
+@{
+    var timelineStart = (DateTime)ViewData["timelineStart"]!;
+    var cellW = (int)ViewData["cellWidth"]!;
+    var level = (int)(ViewData["level"] ?? 0);
+
+    var color = Model.ColorCode ?? "#4361ee";
+    var isDone = Model.IsCompleted;
+    var hasKids = Model.Children.Any();
+    var indent = level * 22;
+
+    // Bar position (Days only — adjust if you use other zoom levels here)
+    double barLeft = -1, barWidth = -1;
+    if (Model.StartDate.HasValue && Model.EndDate.HasValue)
+    {
+        barLeft = Math.Max(0, (Model.StartDate.Value - timelineStart).TotalDays * cellW);
+        barWidth = Math.Max(8, (Model.EndDate.Value - Model.StartDate.Value).TotalDays * cellW);
+    }
+
+    string dateRange = (Model.StartDate.HasValue || Model.EndDate.HasValue)
+        ? $"{Model.StartDate?.ToString("MMM dd")} → {Model.EndDate?.ToString("MMM dd")}"
+        : "No dates set";
+
+    string statusCss = isDone ? "tl-pill-done" : Model.StartDate.HasValue ? "tl-pill-active" : "tl-pill-pending";
+    string statusTxt = isDone ? "Done" : Model.StartDate.HasValue ? "Active" : "Pending";
+}
+
+@* LABEL ROW *@}
+<div class="tl-label-row"
+     data-item-id="@Model.Id"
+     ondblclick="openEditModal(@Model.Id,
+         '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Title))',
+         '@Model.StartDate?.ToString("yyyy-MM-ddTHH:mm")',
+         '@Model.EndDate?.ToString("yyyy-MM-ddTHH:mm")',
+         '@color',
+         @(isDone ? "true" : "false"))">
+
+    <div style="width:@(indent)px;flex-shrink:0"></div>
+
+    <button class="tl-toggle-btn @(!hasKids?"leaf":"")"
+            onclick="toggleRow(@Model.Id, event)"
+            id="toggle-@Model.Id">
+        @(hasKids ? "▾" : "")
+    </button>
+
+    <div class="tl-color-dot" style="background:@color"></div>
+
+    <div class="tl-label-text">
+        <div class="tl-label-name @(level==0?"tl-parent":"") @(isDone?"tl-done":"")">@Model.Title</div>
+        <div class="tl-label-dates">@dateRange</div>
+    </div>
+
+    <span class="tl-status-pill @statusCss">@statusTxt</span>
+</div>
+
+@if (hasKids)
+{
+    <div id="children-@Model.Id">
+        @foreach (var child in Model.Children)
+        {
+            var childVd = new ViewDataDictionary(ViewData);
+            childVd["level"] = level + 1;
+            @await Html.PartialAsync("_TimelineRow", child, childVd)
+        }
+    </div>
+}
