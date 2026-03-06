@@ -484,6 +484,10 @@ namespace TaskOverflow.Controllers
         }
 
         // POST: Tasks/Import
+        // Expected columns (row 4 = header, data from row 5 — matches the template sheet):
+        //   Col 1: Description *   Col 2: Category *   Col 3: Due Date
+        //   Col 4: Start Date      Col 5: End Date      Col 6: Status
+        // Also accepts the old 5-column layout (Description, Due Date, Category, Status, Created At).
         [HttpPost]
         public async Task<IActionResult> Import(IFormFile file)
         {
@@ -496,142 +500,371 @@ namespace TaskOverflow.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) &&
+                !file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["ErrorMessage"] = "Only .xlsx or .xls files are supported.";
+                return RedirectToAction(nameof(Index));
+            }
+
             try
             {
-                // Set EPPlus license context
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                ExcelPackage.License.SetNonCommercialPersonal("TaskOverflow");
 
-                using (var stream = new MemoryStream())
+                using var stream = new MemoryStream();
+                await file.CopyToAsync(stream);
+                using var package = new ExcelPackage(stream);
+
+                // Prefer "Import Template" sheet; fall back to first sheet
+                var worksheet = package.Workbook.Worksheets["Import Template"]
+                             ?? package.Workbook.Worksheets[0];
+
+                if (worksheet?.Dimension == null)
                 {
-                    await file.CopyToAsync(stream);
-                    using (var package = new ExcelPackage(stream))
+                    TempData["ErrorMessage"] = "The uploaded file appears to be empty.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var maxSortOrder = await _context.Tasks
+                    .Where(t => t.UserId == user.Id)
+                    .MaxAsync(t => (int?)t.SortOrder) ?? 0;
+
+                // Auto-detect header row and column layout
+                int headerRow = DetectHeaderRow(worksheet);
+                bool isNewLayout = DetectNewLayout(worksheet, headerRow);
+                int dataStartRow = headerRow + 1;
+                int totalRows = worksheet.Dimension.Rows;
+
+                for (int row = dataStartRow; row <= totalRows; row++)
+                {
+                    try
                     {
-                        var worksheet = package.Workbook.Worksheets[0];
-                        var rowCount = worksheet.Dimension?.Rows ?? 0;
+                        string? description;
+                        string? categoryStr;
+                        string? dueDateStr;
+                        string? startDateStr = null;
+                        string? endDateStr = null;
+                        string? statusStr;
 
-                        // Get max sort order
-                        var maxSortOrder = await _context.Tasks
-                            .Where(t => t.UserId == user.Id)
-                            .MaxAsync(t => (int?)t.SortOrder) ?? 0;
-
-                        for (int row = 2; row <= rowCount; row++) // Skip header row
+                        if (isNewLayout)
                         {
-                            try
-                            {
-                                var description = worksheet.Cells[row, 1].Value?.ToString();
-
-                                if (string.IsNullOrWhiteSpace(description))
-                                {
-                                    results.Errors.Add($"Row {row}: Description is required");
-                                    continue;
-                                }
-
-                                // Parse due date
-                                DateTime? dueDate = null;
-                                if (worksheet.Cells[row, 2].Value != null)
-                                {
-                                    if (DateTime.TryParse(worksheet.Cells[row, 2].Value.ToString(), out var parsedDate))
-                                    {
-                                        dueDate = parsedDate;
-                                    }
-                                }
-
-                                // Parse category
-                                var categoryStr = worksheet.Cells[row, 3].Value?.ToString() ?? "Personal";
-                                if (!Enum.TryParse<CategoryType>(categoryStr, true, out var category))
-                                {
-                                    category = CategoryType.Personal;
-                                }
-
-                                // Parse status
-                                var statusStr = worksheet.Cells[row, 4].Value?.ToString() ?? "Incomplete";
-                                var isCompleted = statusStr.Equals("Completed", StringComparison.OrdinalIgnoreCase);
-
-                                var task = new TaskItem
-                                {
-                                    Description = description,
-                                    DueDate = dueDate,
-                                    Category = category,
-                                    IsCompleted = isCompleted,
-                                    UserId = user.Id,
-                                    CreatedAt = DateTime.UtcNow,
-                                    SortOrder = maxSortOrder + results.SuccessCount + 1
-                                };
-
-                                _context.Tasks.Add(task);
-                                results.SuccessCount++;
-                            }
-                            catch (Exception ex)
-                            {
-                                results.Errors.Add($"Row {row}: {ex.Message}");
-                            }
+                            // New template: Description | Category | Due Date | Start Date | End Date | Status
+                            description = worksheet.Cells[row, 1].Value?.ToString();
+                            categoryStr = worksheet.Cells[row, 2].Value?.ToString() ?? "Personal";
+                            dueDateStr = worksheet.Cells[row, 3].Value?.ToString();
+                            startDateStr = worksheet.Cells[row, 4].Value?.ToString();
+                            endDateStr = worksheet.Cells[row, 5].Value?.ToString();
+                            statusStr = worksheet.Cells[row, 6].Value?.ToString() ?? "Incomplete";
+                        }
+                        else
+                        {
+                            // Legacy layout: Description | Due Date | Category | Status | Created At
+                            description = worksheet.Cells[row, 1].Value?.ToString();
+                            dueDateStr = worksheet.Cells[row, 2].Value?.ToString();
+                            categoryStr = worksheet.Cells[row, 3].Value?.ToString() ?? "Personal";
+                            statusStr = worksheet.Cells[row, 4].Value?.ToString() ?? "Incomplete";
                         }
 
-                        await _context.SaveChangesAsync();
-                        results.TotalRows = rowCount - 1;
+                        if (string.IsNullOrWhiteSpace(description))
+                        {
+                            // Skip genuinely blank rows silently; flag rows with partial data
+                            bool rowHasData = Enumerable.Range(1, 6).Any(c => !string.IsNullOrWhiteSpace(worksheet.Cells[row, c].Value?.ToString()));
+                            if (rowHasData) results.Errors.Add($"Row {row}: Description is required.");
+                            results.TotalRows++;
+                            continue;
+                        }
 
-                        TempData["ImportResults"] = System.Text.Json.JsonSerializer.Serialize(results);
+                        if (description.Length > 500)
+                        {
+                            results.Errors.Add($"Row {row}: Description exceeds 500 characters — truncated.");
+                            description = description[..500];
+                        }
+
+                        if (!Enum.TryParse<CategoryType>(categoryStr, ignoreCase: true, out var category))
+                        {
+                            results.Errors.Add($"Row {row}: Unknown category '{categoryStr}' — defaulted to Personal.");
+                            category = CategoryType.Personal;
+                        }
+
+                        DateTime? ParseDate(string? raw)
+                        {
+                            if (string.IsNullOrWhiteSpace(raw)) return null;
+                            return DateTime.TryParse(raw, out var d) ? d : null;
+                        }
+
+                        var dueDate = ParseDate(dueDateStr);
+                        var startDate = ParseDate(startDateStr);
+                        var endDate = ParseDate(endDateStr);
+                        var isCompleted = (statusStr ?? "").Contains("Completed", StringComparison.OrdinalIgnoreCase)
+                                       && !statusStr!.Contains("Incomplete", StringComparison.OrdinalIgnoreCase);
+
+                        _context.Tasks.Add(new TaskItem
+                        {
+                            Description = description,
+                            Category = category,
+                            DueDate = dueDate,
+                            StartDate = startDate,
+                            EndDate = endDate,
+                            IsCompleted = isCompleted,
+                            UserId = user.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            SortOrder = maxSortOrder + results.SuccessCount + 1
+                        });
+
+                        results.SuccessCount++;
+                        results.TotalRows++;
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Errors.Add($"Row {row}: {ex.Message}");
+                        results.TotalRows++;
                     }
                 }
+
+                await _context.SaveChangesAsync();
+                TempData["ImportResults"] = System.Text.Json.JsonSerializer.Serialize(results);
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error importing file: {ex.Message}";
+                TempData["ErrorMessage"] = $"Error reading file: {ex.Message}";
             }
 
             return RedirectToAction(nameof(Index));
         }
 
+        // Detect which row contains the column headers (looks for "Description" in col 1, rows 1-6)
+        private static int DetectHeaderRow(OfficeOpenXml.ExcelWorksheet ws)
+        {
+            for (int r = 1; r <= Math.Min(6, ws.Dimension.Rows); r++)
+            {
+                var val = ws.Cells[r, 1].Value?.ToString() ?? "";
+                if (val.StartsWith("Description", StringComparison.OrdinalIgnoreCase))
+                    return r;
+            }
+            return 1; // default: assume row 1
+        }
+
+        // Returns true if the header row matches the new 6-column template layout
+        private static bool DetectNewLayout(OfficeOpenXml.ExcelWorksheet ws, int headerRow)
+        {
+            var col2 = ws.Cells[headerRow, 2].Value?.ToString() ?? "";
+            return col2.StartsWith("Category", StringComparison.OrdinalIgnoreCase);
+        }
+
         // GET: Tasks/Export
-        public async Task<IActionResult> Export()
+        public async Task<IActionResult> Export(string statusFilter = "All", string searchString = "")
         {
             var user = await _userManager.GetUserAsync(User);
-            var tasks = await _context.Tasks
-                .Where(t => t.UserId == user.Id)
-                .OrderBy(t => t.DueDate)
-                .ToListAsync();
 
-            // Set EPPlus license context
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            var query = _context.Tasks
+                .Where(t => t.UserId == user.Id && !t.IsDeleted);
 
-            using (var package = new ExcelPackage())
+            if (!string.IsNullOrEmpty(searchString))
+                query = query.Where(t => t.Description.Contains(searchString));
+
+            switch (statusFilter)
             {
-                var worksheet = package.Workbook.Worksheets.Add("Tasks");
-
-                // Headers
-                worksheet.Cells[1, 1].Value = "Description";
-                worksheet.Cells[1, 2].Value = "Due Date";
-                worksheet.Cells[1, 3].Value = "Category";
-                worksheet.Cells[1, 4].Value = "Status";
-                worksheet.Cells[1, 5].Value = "Created At";
-
-                // Style headers
-                using (var range = worksheet.Cells[1, 1, 1, 5])
-                {
-                    range.Style.Font.Bold = true;
-                    range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
-                }
-
-                // Data
-                for (int i = 0; i < tasks.Count; i++)
-                {
-                    worksheet.Cells[i + 2, 1].Value = tasks[i].Description;
-                    worksheet.Cells[i + 2, 2].Value = tasks[i].DueDate?.ToString("yyyy-MM-dd");
-                    worksheet.Cells[i + 2, 3].Value = tasks[i].Category.ToString();
-                    worksheet.Cells[i + 2, 4].Value = tasks[i].IsCompleted ? "Completed" : "Incomplete";
-                    worksheet.Cells[i + 2, 5].Value = tasks[i].CreatedAt.ToString("yyyy-MM-dd HH:mm");
-                }
-
-                worksheet.Cells.AutoFitColumns();
-
-                var stream = new MemoryStream();
-                package.SaveAs(stream);
-                stream.Position = 0;
-
-                var fileName = $"Tasks_Export_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
-                return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                case "Completed": query = query.Where(t => t.IsCompleted); break;
+                case "Incomplete": query = query.Where(t => !t.IsCompleted); break;
             }
+
+            var tasks = await query.OrderBy(t => t.DueDate ?? DateTime.MaxValue).ToListAsync();
+
+            ExcelPackage.License.SetNonCommercialPersonal("TaskOverflow");
+
+            using var package = new ExcelPackage();
+
+            // ── Sheet 1: Tasks ──────────────────────────────────────────────
+            var ws = package.Workbook.Worksheets.Add("Tasks");
+
+            // Title row
+            ws.Cells[1, 1].Value = "TaskOverflow – Task Export";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 14;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(System.Drawing.Color.FromArgb(0x1a, 0x73, 0xe8));
+            ws.Cells[1, 1, 1, 8].Merge = true;
+
+            ws.Cells[2, 1].Value = $"Exported: {DateTime.Now:dd MMM yyyy HH:mm}   |   Filter: {statusFilter}   |   Total: {tasks.Count}";
+            ws.Cells[2, 1].Style.Font.Italic = true;
+            ws.Cells[2, 1].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
+            ws.Cells[2, 1, 2, 8].Merge = true;
+
+            // Header row (row 4)
+            string[] headers = { "#", "Description", "Category", "Status", "Due Date", "Start Date", "End Date", "Created At" };
+            for (int c = 0; c < headers.Length; c++)
+            {
+                var cell = ws.Cells[4, c + 1];
+                cell.Value = headers[c];
+                cell.Style.Font.Bold = true;
+                cell.Style.Font.Color.SetColor(System.Drawing.Color.White);
+                cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(0x1a, 0x73, 0xe8));
+                cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                cell.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Medium;
+            }
+
+            // Data rows
+            for (int i = 0; i < tasks.Count; i++)
+            {
+                int row = i + 5;
+                var t = tasks[i];
+                bool isEven = i % 2 == 0;
+
+                var rowRange = ws.Cells[row, 1, row, 8];
+                if (isEven)
+                {
+                    rowRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    rowRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(0xf0, 0xf4, 0xff));
+                }
+
+                ws.Cells[row, 1].Value = i + 1;
+                ws.Cells[row, 2].Value = t.Description;
+
+                var catCell = ws.Cells[row, 3];
+                catCell.Value = t.Category.ToString();
+                catCell.Style.Font.Color.SetColor(t.Category switch
+                {
+                    CategoryType.Urgent => System.Drawing.Color.FromArgb(0xdc, 0x35, 0x45),
+                    CategoryType.Work => System.Drawing.Color.FromArgb(0x0d, 0x6e, 0xfd),
+                    CategoryType.Personal => System.Drawing.Color.FromArgb(0x0d, 0xcb, 0xf5),
+                    _ => System.Drawing.Color.Black
+                });
+                catCell.Style.Font.Bold = true;
+
+                var statusCell = ws.Cells[row, 4];
+                statusCell.Value = t.IsCompleted ? "✓ Completed" : "○ Incomplete";
+                statusCell.Style.Font.Color.SetColor(t.IsCompleted
+                    ? System.Drawing.Color.FromArgb(0x19, 0x87, 0x54)
+                    : System.Drawing.Color.FromArgb(0xfd, 0x7e, 0x14));
+
+                if (t.DueDate.HasValue)
+                {
+                    ws.Cells[row, 5].Value = t.DueDate.Value.ToString("yyyy-MM-dd");
+                    if (t.DueDate.Value.Date < DateTime.Today && !t.IsCompleted)
+                        ws.Cells[row, 5].Style.Font.Color.SetColor(System.Drawing.Color.Red);
+                }
+
+                if (t.StartDate.HasValue) ws.Cells[row, 6].Value = t.StartDate.Value.ToString("yyyy-MM-dd");
+                if (t.EndDate.HasValue) ws.Cells[row, 7].Value = t.EndDate.Value.ToString("yyyy-MM-dd");
+                ws.Cells[row, 8].Value = t.CreatedAt.ToString("yyyy-MM-dd HH:mm");
+
+                // Row bottom border
+                ws.Cells[row, 1, row, 8].Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Hair;
+                ws.Cells[row, 1, row, 8].Style.Border.Bottom.Color.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            // Totals summary row
+            int summaryRow = tasks.Count + 5;
+            int completed = tasks.Count(t => t.IsCompleted);
+            int overdue = tasks.Count(t => !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value.Date < DateTime.Today);
+
+            ws.Cells[summaryRow, 1].Value = "Summary";
+            ws.Cells[summaryRow, 1].Style.Font.Bold = true;
+            ws.Cells[summaryRow, 2].Value = $"Total: {tasks.Count}  |  Completed: {completed}  |  Pending: {tasks.Count - completed}  |  Overdue: {overdue}";
+            ws.Cells[summaryRow, 1, summaryRow, 8].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+            ws.Cells[summaryRow, 1, summaryRow, 8].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(0xe8, 0xf0, 0xfe));
+            ws.Cells[summaryRow, 1, summaryRow, 8].Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Medium;
+
+            // Column widths
+            ws.Column(1).Width = 5;
+            ws.Column(2).Width = 45;
+            ws.Column(3).Width = 13;
+            ws.Column(4).Width = 14;
+            ws.Column(5).Width = 13;
+            ws.Column(6).Width = 13;
+            ws.Column(7).Width = 13;
+            ws.Column(8).Width = 18;
+
+            // Freeze header
+            ws.View.FreezePanes(5, 1);
+
+            // ── Sheet 2: Import Template ────────────────────────────────────
+            AddImportTemplateSheet(package);
+
+            var stream = new MemoryStream();
+            package.SaveAs(stream);
+            stream.Position = 0;
+
+            var fileName = $"TaskOverflow_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        // GET: Tasks/DownloadTemplate
+        public IActionResult DownloadTemplate()
+        {
+            ExcelPackage.License.SetNonCommercialPersonal("TaskOverflow");
+            using var package = new ExcelPackage();
+            AddImportTemplateSheet(package);
+
+            var stream = new MemoryStream();
+            package.SaveAs(stream);
+            stream.Position = 0;
+
+            return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "TaskOverflow_Import_Template.xlsx");
+        }
+
+        private void AddImportTemplateSheet(ExcelPackage package)
+        {
+            var ws = package.Workbook.Worksheets.Add("Import Template");
+
+            // Title
+            ws.Cells[1, 1].Value = "TaskOverflow – Import Template";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 13;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(System.Drawing.Color.FromArgb(0x1a, 0x73, 0xe8));
+            ws.Cells[1, 1, 1, 6].Merge = true;
+
+            ws.Cells[2, 1].Value = "Fill in rows below the header. Required: Description, Category. Optional: Due Date, Start Date, End Date, Status.";
+            ws.Cells[2, 1].Style.Font.Italic = true;
+            ws.Cells[2, 1].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
+            ws.Cells[2, 1, 2, 6].Merge = true;
+
+            // Headers row 4
+            var templateHeaders = new[] { "Description *", "Category *", "Due Date", "Start Date", "End Date", "Status" };
+            var headerNotes = new[] { "Required. Max 500 chars.", "Work | Personal | Urgent", "yyyy-MM-dd (optional)", "yyyy-MM-dd (optional)", "yyyy-MM-dd (optional)", "Completed or Incomplete (default: Incomplete)" };
+
+            for (int c = 0; c < templateHeaders.Length; c++)
+            {
+                var cell = ws.Cells[4, c + 1];
+                cell.Value = templateHeaders[c];
+                cell.Style.Font.Bold = true;
+                cell.Style.Font.Color.SetColor(System.Drawing.Color.White);
+                cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(0x1a, 0x73, 0xe8));
+                cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                cell.AddComment(headerNotes[c], "TaskOverflow");
+            }
+
+            // 3 example rows
+            object[][] examples =
+            {
+                new object[] { "Review Q2 financial reports",      "Work",     "2026-04-15", "2026-04-01", "2026-04-15", "Incomplete" },
+                new object[] { "Book dentist appointment",          "Personal", "2026-03-20", "",           "",           "Incomplete" },
+                new object[] { "Fix production login bug ASAP",    "Urgent",   "2026-03-10", "2026-03-07", "2026-03-10", "Incomplete" },
+            };
+
+            for (int r = 0; r < examples.Length; r++)
+            {
+                for (int c = 0; c < examples[r].Length; c++)
+                {
+                    ws.Cells[r + 5, c + 1].Value = examples[r][c];
+                }
+                // Light stripe
+                if (r % 2 == 0)
+                {
+                    ws.Cells[r + 5, 1, r + 5, 6].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    ws.Cells[r + 5, 1, r + 5, 6].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(0xf0, 0xf4, 0xff));
+                }
+            }
+
+            ws.Column(1).Width = 42;
+            ws.Column(2).Width = 13;
+            ws.Column(3).Width = 13;
+            ws.Column(4).Width = 13;
+            ws.Column(5).Width = 13;
+            ws.Column(6).Width = 22;
+
+            ws.View.FreezePanes(5, 1);
         }
 
         [Authorize]
@@ -668,8 +901,8 @@ namespace TaskOverflow.Controllers
                         Category = t.Category,
                         IsCompleted = t.IsCompleted,
                         DueDate = t.DueDate!.Value,
-                        StartDate = t.StartDate, 
-                        EndDate = t.EndDate     
+                        StartDate = t.StartDate,
+                        EndDate = t.EndDate
                     })
                     .ToList(),
 

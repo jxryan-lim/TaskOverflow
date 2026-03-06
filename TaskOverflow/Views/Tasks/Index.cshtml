@@ -89,12 +89,27 @@
                         <a asp-action="Create" class="btn btn-success">
                             <i class="bi bi-plus-circle"></i> Add Task
                         </a>
-                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
-                            <i class="bi bi-download"></i>
+                        <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-table"></i>
                         </button>
-                        <ul class="dropdown-menu">
-                            <li><a asp-action="Export" class="dropdown-item">Export to Excel</a></li>
-                            <li><a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importModal">Import from Excel</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header"><i class="bi bi-file-earmark-excel text-success"></i> Excel</h6></li>
+                            <li>
+                                <a asp-action="Export" asp-route-statusFilter="@Model.StatusFilter" asp-route-searchString="@Model.SearchString" class="dropdown-item">
+                                    <i class="bi bi-download me-1"></i> Export Current View
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importModal">
+                                    <i class="bi bi-upload me-1"></i> Import from Excel
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a asp-action="DownloadTemplate" class="dropdown-item text-muted">
+                                    <i class="bi bi-file-earmark-arrow-down me-1"></i> Download Import Template
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -242,24 +257,62 @@
 
 <!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Import Tasks from Excel</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-excel me-2"></i>Import Tasks from Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form asp-action="Import" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
                 <div class="modal-body">
-                    <p>Download a <a href="/templates/task-import-template.xlsx" class="text-primary">sample template</a></p>
-                    <p>The Excel file should have columns: Description, Due Date, Category, Status</p>
-                    <div class="mb-3">
-                        <label for="file" class="form-label">Select Excel file</label>
-                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                    <!-- Info box -->
+                    <div class="alert alert-info d-flex gap-2 align-items-start py-2">
+                        <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i>
+                        <div>
+                            <strong>Expected columns (row 1 = header, data from row 2):</strong>
+                            <table class="table table-sm table-bordered mb-0 mt-2 bg-white">
+                                <thead class="table-light">
+                                    <tr><th>Column</th><th>Name</th><th>Required?</th><th>Notes</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>A</td><td>Description</td><td><span class="badge bg-danger">Required</span></td><td>Max 500 chars</td></tr>
+                                    <tr><td>B</td><td>Category</td><td><span class="badge bg-danger">Required</span></td><td>Work | Personal | Urgent</td></tr>
+                                    <tr><td>C</td><td>Due Date</td><td><span class="badge bg-secondary">Optional</span></td><td>yyyy-MM-dd</td></tr>
+                                    <tr><td>D</td><td>Start Date</td><td><span class="badge bg-secondary">Optional</span></td><td>yyyy-MM-dd</td></tr>
+                                    <tr><td>E</td><td>End Date</td><td><span class="badge bg-secondary">Optional</span></td><td>yyyy-MM-dd</td></tr>
+                                    <tr><td>F</td><td>Status</td><td><span class="badge bg-secondary">Optional</span></td><td>Completed or Incomplete (default: Incomplete)</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="mt-2">
+                                <a asp-action="DownloadTemplate" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-file-earmark-arrow-down me-1"></i>Download Template
+                                </a>
+                                <small class="text-muted ms-2">The exported file also contains a ready-to-use template sheet.</small>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- File picker -->
+                    <div class="mb-3">
+                        <label for="file" class="form-label fw-semibold">Select Excel file (.xlsx)</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                        <div class="form-text">Legacy exports (Description | Due Date | Category | Status) are also accepted.</div>
+                    </div>
+
+                    <!-- Drag-drop hint -->
+                    <div id="dropZone" class="border border-2 border-dashed rounded p-4 text-center text-muted" style="cursor:pointer; transition: background .2s;"
+                         onclick="document.getElementById('file').click()">
+                        <i class="bi bi-cloud-upload fs-3 d-block mb-1"></i>
+                        <span>or drag &amp; drop your file here</span>
+                    </div>
+                    <div id="fileNameDisplay" class="mt-2 text-success fw-semibold d-none"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Import</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Import Tasks
+                    </button>
                 </div>
             </form>
         </div>
@@ -317,6 +370,36 @@
             document.getElementById('taskDescription').textContent = description;
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
             deleteModal.show();
+        }
+
+        // Drag-and-drop file upload on import modal
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('file');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+        if (dropZone && fileInput) {
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) showFileName(fileInput.files[0].name);
+            });
+
+            dropZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                dropZone.style.background = '#e8f0fe';
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.style.background = '');
+            dropZone.addEventListener('drop', e => {
+                e.preventDefault();
+                dropZone.style.background = '';
+                const dt = new DataTransfer();
+                dt.items.add(e.dataTransfer.files[0]);
+                fileInput.files = dt.files;
+                showFileName(e.dataTransfer.files[0].name);
+            });
+        }
+
+        function showFileName(name) {
+            fileNameDisplay.textContent = '✓ ' + name;
+            fileNameDisplay.classList.remove('d-none');
         }
     </script>
 }

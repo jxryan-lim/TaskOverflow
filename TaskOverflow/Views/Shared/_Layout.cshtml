@@ -23,6 +23,94 @@
     <link rel="stylesheet" href="~/css/dark-mode.css" asp-append-version="true" />
 
     @await RenderSectionAsync("Styles", required: false)
+    <style>
+        /* ── Profile avatar pill ── */
+        .user-pill {
+            transition: background .15s;
+        }
+
+            .user-pill:hover {
+                background: rgba(0,0,0,.06);
+            }
+
+        .avatar-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: #fff;
+            font-weight: 700;
+            font-size: .85rem;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .avatar-circle-lg {
+            width: 42px;
+            height: 42px;
+            font-size: 1.1rem;
+        }
+
+        /* ── Profile dropdown — moved to document root to fully escape stacking contexts ── */
+        .profile-dropdown {
+            min-width: 220px;
+            border-radius: .75rem;
+            border: 1px solid rgba(0,0,0,.08);
+            position: fixed !important;
+            z-index: 99999 !important;
+        }
+
+        /* Fix: table-responsive creates overflow:auto which clips the navbar dropdown */
+        .table-responsive {
+            overflow: visible !important;
+        }
+
+        /* Fix: navbar must sit above all page content */
+        header, header .navbar {
+            position: relative;
+            z-index: 99998 !important;
+        }
+
+        .profile-dropdown .dropdown-item {
+            border-radius: .4rem;
+            margin: 1px 4px;
+            padding: .45rem .75rem;
+            font-size: .9rem;
+        }
+
+            .profile-dropdown .dropdown-item:hover {
+                background: #f0f4ff;
+            }
+
+            .profile-dropdown .dropdown-item.text-danger:hover {
+                background: #fff0f0;
+            }
+
+        /* dark-mode adjustments */
+        [data-theme="dark"] .user-pill:hover {
+            background: rgba(255,255,255,.1);
+        }
+
+        [data-theme="dark"] .profile-dropdown {
+            background: #1e2130;
+            border-color: rgba(255,255,255,.1);
+        }
+
+            [data-theme="dark"] .profile-dropdown .dropdown-item {
+                color: #dde1f0;
+            }
+
+                [data-theme="dark"] .profile-dropdown .dropdown-item:hover {
+                    background: rgba(255,255,255,.07);
+                }
+
+            [data-theme="dark"] .profile-dropdown hr {
+                border-color: rgba(255,255,255,.1);
+            }
+    </style>
 </head>
 <body>
     <header>
@@ -59,20 +147,53 @@
                         }
                     </ul>
 
-                    <ul class="navbar-nav">
+                    <ul class="navbar-nav align-items-center">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item">
-                                <span class="nav-link">
-                                    <i class="bi bi-person-circle"></i> @User.Identity.Name
-                                </span>
-                            </li>
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    <button type="submit" class="nav-link btn btn-link">
-                                        <i class="bi bi-box-arrow-right"></i> Logout
-                                    </button>
-                                </form>
+                            <!-- Profile dropdown -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 rounded-pill user-pill"
+                                   href="#" id="profileDropdown" role="button"
+                                   data-bs-toggle="dropdown" data-bs-auto-close="true"
+                                   aria-expanded="false">
+                                    <span class="avatar-circle">
+                                        @(string.IsNullOrEmpty(User.Identity.Name) ? "?" : User.Identity.Name.Substring(0, 1).ToUpper())
+                                    </span>
+                                    <span class="d-none d-md-inline fw-medium">@User.Identity.Name</span>
+                                    <i class="bi bi-chevron-down small"></i>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end profile-dropdown shadow" id="profileDropdownMenu" aria-labelledby="profileDropdown">
+                                    <li class="dropdown-header px-3 pt-2 pb-1">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="avatar-circle avatar-circle-lg">
+                                                @(string.IsNullOrEmpty(User.Identity.Name) ? "?" : User.Identity.Name.Substring(0, 1).ToUpper())
+                                            </span>
+                                            <div>
+                                                <div class="fw-semibold text-body">@User.Identity.Name</div>
+                                                <div class="small text-muted">Logged in</div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile">
+                                            <i class="bi bi-person-badge text-primary"></i> My Profile
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center gap-2" asp-controller="Account" asp-action="Settings">
+                                            <i class="bi bi-gear text-secondary"></i> Settings
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-block">
+                                            <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger">
+                                                <i class="bi bi-box-arrow-right"></i> Logout
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         else
@@ -121,6 +242,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/theme.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        // Use Popper fixed strategy so dropdown isn't clipped by any ancestor
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.getElementById('profileDropdown');
+            if (!toggle) return;
+            new bootstrap.Dropdown(toggle, {
+                popperConfig: function (defaultConfig) {
+                    return Object.assign({}, defaultConfig, { strategy: 'fixed' });
+                }
+            });
+        });
+    </script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
